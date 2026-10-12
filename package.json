@@ -1,0 +1,17 @@
+{
+  "name": "hostelhub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HostelHub — Full Stack Student Accommodation Platform",
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix backend start",
+    "test": "npm --prefix backend test",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  },
+  "keywords": ["hostel", "student-living", "accommodation", "express", "react"],
+  "author": "HostelHub",
+  "license": "ISC"
+}
