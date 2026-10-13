@@ -104,6 +104,20 @@ async function ensureSecurityTables(database) {
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY(hostel_id) REFERENCES hostels(id) ON DELETE CASCADE
     );
+    CREATE TABLE IF NOT EXISTS hostel_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      hostel_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      details TEXT,
+      status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','reviewing','resolved','dismissed')),
+      admin_response TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(hostel_id, user_id, status),
+      FOREIGN KEY(hostel_id) REFERENCES hostels(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   if (!(await columnExists(database, "complaints", "status"))) {

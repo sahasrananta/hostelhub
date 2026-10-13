@@ -14,6 +14,7 @@ Production-ready Node.js + Express + SQLite backend for the HostelHub student ac
 - `PATCH /users/:id/status` (Admin): Activate / deactivate user account
 - `GET /admin/overview` (Admin): Metrics, pending hostel requests, complaints, audit login trail
 - `PATCH /admin/hostels/:id/review` (Admin): Approve / reject hostel listings
+- `POST /admin/hostels` (Admin): Add and approve a manual hostel listing with room inventory
 
 ### 2. Hostel Listings (`/api/hostels`)
 - `GET /`: Search and filter approved hostels by city, keyword, amenities, price
@@ -60,7 +61,13 @@ Production-ready Node.js + Express + SQLite backend for the HostelHub student ac
 - `GET /all` (Admin): Admin views all platform complaints
 - `PATCH /:id/status`: Owner or admin updates complaint status (`open`, `reviewing`, `resolved`, `closed`) and attaches response note
 
-### 9. Reviews & Wishlist (`/api/reviews`, `/api/wishlist`)
+### 9. Listing Reports (`/api/hostel-reports`)
+- `POST /`: Students and residents report suspicious, duplicate, misleading, or unsafe listings
+- `GET /mine`: Student view of submitted listing reports
+- `GET /all` (Admin): Admin moderation queue
+- `PATCH /:id/status` (Admin): Mark a report `reviewing`, `resolved`, or `dismissed`
+
+### 10. Reviews & Wishlist (`/api/reviews`, `/api/wishlist`)
 - `POST /reviews`: Verified residents review hostel (1–5 stars)
 - `GET /reviews/hostel/:id`: Public reviews
 - `GET /reviews/owner` (Owner): Reviews received

@@ -194,7 +194,7 @@ function Home({ toggleWishlist, wishlist }) {
   const [showAuthPrompt, setShowAuthPrompt] = useState(() => !localStorage.getItem("hostelhub_user"));
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/hostels?city=${encodeURIComponent(initialCity)}`)
+    fetch(`${API_BASE}/hostels`)
       .then((response) => { if (!response.ok) throw new Error("Could not load hostels"); return response.json(); })
       .then((data) => { if (!cancelled) setFeaturedHostels(Array.isArray(data) ? data.slice(0, 3) : []); })
       .catch(() => { if (!cancelled) setFeaturedHostels([]); });
@@ -474,7 +474,10 @@ function HostelDetails({ toggleWishlist, wishlist, user, notify }) {
   if (loading) return <main className="page"><div className="container"><div className="empty">Loading hostel details...</div></div></main>;
   if (error || !h) return <main className="page"><div className="container"><div className="empty">{error || "Hostel not found."}</div></div></main>;
 
-  const imageClass = h.photos?.length ? "" : "img-sunrise";
+  const primaryImage = h.photos?.[0]?.url
+    ? `${API_ORIGIN}${h.photos[0].url}`
+    : h.image_url || null;
+  const imageClass = primaryImage ? "" : "img-sunrise";
   const rooms = h.rooms || [];
   const menu = h.menu || [];
   const reviews = h.reviews || [];
@@ -487,7 +490,7 @@ function HostelDetails({ toggleWishlist, wishlist, user, notify }) {
       <div className="container">
         <div className="breadcrumbs"><Link to="/hostels">Hostels</Link> / {h.name}</div>
         <div className="detail-gallery">
-          <div className="gallery-main" style={h.photos?.[0]?.url ? {backgroundImage:`url(${API_ORIGIN}${h.photos[0].url})`} : undefined}></div>
+          <div className="gallery-main" style={primaryImage ? {backgroundImage:`url(${primaryImage})`} : undefined}></div>
           <div className="gallery-small">
             <div className={imageClass + " g1"} style={h.photos?.[1]?.url ? {backgroundImage:`url(${API_ORIGIN}${h.photos[1].url})`} : undefined}></div>
             <div className={imageClass + " g2"} style={h.photos?.[2]?.url ? {backgroundImage:`url(${API_ORIGIN}${h.photos[2].url})`} : undefined}></div>

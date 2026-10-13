@@ -15,6 +15,7 @@ import payments from "./routes/payments.js";
 import reviews from "./routes/reviews.js";
 import wishlist from "./routes/wishlist.js";
 import complaints from "./routes/complaints.js";
+import hostelReports from "./routes/hostelReports.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,6 +56,7 @@ app.use("/api/payments", payments);
 app.use("/api/reviews", reviews);
 app.use("/api/wishlist", wishlist);
 app.use("/api/complaints", complaints);
+app.use("/api/hostel-reports", hostelReports);
 
 // Unified static frontend hosting (for production deployment)
 const frontendDist = path.resolve(__dirname, "../../frontend/dist");

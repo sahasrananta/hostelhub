@@ -113,9 +113,53 @@ router.get("/admin/overview", authenticate, authorize("admin"), async (_req, res
     const pendingHostels = await db.all("SELECT h.*, u.name AS owner_name, u.email AS owner_email FROM hostels h JOIN users u ON u.id=h.owner_id WHERE h.status='pending' ORDER BY h.created_at ASC");
     const allHostels = await db.all("SELECT h.*, u.name AS owner_name, u.email AS owner_email FROM hostels h JOIN users u ON u.id=h.owner_id ORDER BY h.id DESC");
     const complaints = await db.all("SELECT c.*, u.name AS student_name, u.email AS student_email, h.name AS hostel_name FROM complaints c JOIN users u ON u.id=c.user_id JOIN hostels h ON h.id=c.hostel_id ORDER BY c.created_at DESC");
+    const hostelReports = await db.all("SELECT r.*, u.name AS student_name, u.email AS student_email, h.name AS hostel_name, h.city AS hostel_city FROM hostel_reports r JOIN users u ON u.id=r.user_id JOIN hostels h ON h.id=r.hostel_id ORDER BY CASE r.status WHEN 'open' THEN 0 WHEN 'reviewing' THEN 1 ELSE 2 END, r.created_at DESC");
     const auditLogs = await db.all("SELECT * FROM login_events ORDER BY id DESC LIMIT 25");
-    res.json({ users, logins, hostelStats, pendingHostels, allHostels, complaints, auditLogs });
+    res.json({ users, logins, hostelStats, pendingHostels, allHostels, complaints, hostelReports, auditLogs });
   } catch (e) { console.error(e); res.status(500).json({message:'Could not load admin overview'}); }
+});
+
+router.post("/admin/hostels", authenticate, authorize("admin"), async (req, res) => {
+  try {
+    const { name, city, address = "", description = "", gender = "Co-ed", phone = "", email = "", amenities = [], rules = [], image_url = "", room_type = "Standard", price_per_month = 0, total_beds = 1 } = req.body;
+    if (!String(name || "").trim() || !String(city || "").trim()) {
+      return res.status(400).json({ message: "Hostel name and city are required" });
+    }
+    const price = Number(price_per_month);
+    const beds = Number(total_beds);
+    if (!Number.isFinite(price) || price < 0 || !Number.isInteger(beds) || beds < 1) {
+      return res.status(400).json({ message: "Price must be zero or more and beds must be a positive whole number" });
+    }
+    const db = await getDb();
+    const result = await db.run(
+      `INSERT INTO hostels(owner_id,name,city,address,description,gender,phone,email,amenities,rules,image_url,status)
+       VALUES(?,?,?,?,?,?,?,?,?,?,?,'approved')`,
+      req.user.id,
+      String(name).trim(),
+      String(city).trim(),
+      String(address).trim(),
+      String(description).trim(),
+      String(gender).trim(),
+      String(phone).trim(),
+      String(email).trim(),
+      JSON.stringify(Array.isArray(amenities) ? amenities : []),
+      JSON.stringify(Array.isArray(rules) ? rules : []),
+      String(image_url).trim()
+    );
+    await db.run(
+      "INSERT INTO rooms(hostel_id,room_type,price_per_month,total_beds,available_beds,description) VALUES(?,?,?,?,?,?)",
+      result.lastID,
+      String(room_type).trim() || "Standard",
+      price,
+      beds,
+      beds,
+      "Room inventory added by an administrator."
+    );
+    return res.status(201).json({ message: "Hostel added and approved", hostel: await db.get("SELECT * FROM hostels WHERE id = ?", result.lastID) });
+  } catch (error) {
+    console.error("Admin hostel creation failed:", error);
+    return res.status(500).json({ message: "Could not add hostel" });
+  }
 });
 
 router.patch("/admin/hostels/:id/review", authenticate, authorize("admin"), async (req, res) => {

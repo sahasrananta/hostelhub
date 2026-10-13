@@ -35,6 +35,8 @@ export default function StudentDashboard({ notify }) {
   const [updates, setUpdates] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [hostelMenu, setHostelMenu] = useState([]);
+  const [reportHostels, setReportHostels] = useState([]);
+  const [hostelReports, setHostelReports] = useState([]);
 
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -52,6 +54,10 @@ export default function StudentDashboard({ notify }) {
 
   // Monthly fee payment modal
   const [payingFee, setPayingFee] = useState(false);
+  const [reportHostelId, setReportHostelId] = useState("");
+  const [reportReason, setReportReason] = useState("Suspected fake listing");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   const token = localStorage.getItem("hostelhub_token");
 
@@ -77,13 +83,15 @@ export default function StudentDashboard({ notify }) {
       setError("");
       const headers = authHeaders(token);
 
-      const [bRes, pRes, wRes, cRes, uRes, rRes] = await Promise.all([
+      const [bRes, pRes, wRes, cRes, uRes, rRes, hRes, hrRes] = await Promise.all([
         fetch(`${API}/bookings/mine`, { headers }).catch(() => ({ ok: false })),
         fetch(`${API}/payments/mine`, { headers }).catch(() => ({ ok: false })),
         fetch(`${API}/wishlist`, { headers }).catch(() => ({ ok: false })),
         fetch(`${API}/complaints/mine`, { headers }).catch(() => ({ ok: false })),
         fetch(`${API}/updates/mine`, { headers }).catch(() => ({ ok: false })),
         fetch(`${API}/reviews/mine`, { headers }).catch(() => ({ ok: false })),
+        fetch(`${API}/hostels`).catch(() => ({ ok: false })),
+        fetch(`${API}/hostel-reports/mine`, { headers }).catch(() => ({ ok: false })),
       ]);
 
       if (bRes.status === 401) {
@@ -100,6 +108,8 @@ export default function StudentDashboard({ notify }) {
       const cData = cRes.ok ? await cRes.json().catch(() => []) : [];
       const uData = uRes.ok ? await uRes.json().catch(() => []) : [];
       const rData = rRes.ok ? await rRes.json().catch(() => []) : [];
+      const hData = hRes.ok ? await hRes.json().catch(() => []) : [];
+      const hrData = hrRes.ok ? await hrRes.json().catch(() => []) : [];
 
       const bookingList = Array.isArray(bData) ? bData : [];
       setBookings(bookingList);
@@ -108,6 +118,8 @@ export default function StudentDashboard({ notify }) {
       setComplaints(Array.isArray(cData) ? cData : []);
       setUpdates(Array.isArray(uData) ? uData : []);
       setReviews(Array.isArray(rData) ? rData : []);
+      setReportHostels(Array.isArray(hData) ? hData : []);
+      setHostelReports(Array.isArray(hrData) ? hrData : []);
 
       // If user has an active confirmed booking, load the menu for that hostel
       const activeStay = bookingList.find((b) => b.status === "confirmed");
@@ -124,6 +136,32 @@ export default function StudentDashboard({ notify }) {
       setError(err.message || "Could not load student information");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubmitHostelReport = async (event) => {
+    event.preventDefault();
+    if (!reportHostelId || !reportReason.trim()) {
+      notify("Select a hostel and enter a reason.");
+      return;
+    }
+    try {
+      setReportSubmitting(true);
+      const response = await fetch(`${API}/hostel-reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders(token) },
+        body: JSON.stringify({ hostel_id: Number(reportHostelId), reason: reportReason.trim(), details: reportDetails.trim() }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Could not submit report");
+      setHostelReports([data, ...hostelReports]);
+      setReportHostelId("");
+      setReportDetails("");
+      notify("Thank you. The listing report was sent to HostelHub moderation.");
+    } catch (error) {
+      notify(error.message);
+    } finally {
+      setReportSubmitting(false);
     }
   };
 
@@ -360,6 +398,12 @@ export default function StudentDashboard({ notify }) {
             onClick={() => setActiveTab("reviews")}
           >
             Reviews ({reviews.length})
+          </button>
+          <button
+            className={activeTab === "reports" ? "active" : ""}
+            onClick={() => setActiveTab("reports")}
+          >
+            Report listing ({hostelReports.length})
           </button>
         </div>
 
@@ -743,6 +787,47 @@ export default function StudentDashboard({ notify }) {
               </div>
             ) : (
               <div className="empty">No reviews submitted yet.</div>
+            )}
+
+            {activeTab === "reports" && (
+              <div style={{ marginTop: 12, display: "grid", gap: 24 }}>
+                <form className="panel" onSubmit={handleSubmitHostelReport}>
+                  <div className="panel-head">
+                    <div>
+                      <h2>Report a suspicious hostel listing</h2>
+                      <p className="muted">Help students in your circle by reporting fake, duplicate, misleading, or unsafe listings.</p>
+                    </div>
+                  </div>
+                  <label>Hostel listing
+                    <select className="input" value={reportHostelId} onChange={(event) => setReportHostelId(event.target.value)} required>
+                      <option value="">Select a hostel</option>
+                      {reportHostels.map((hostel) => <option key={hostel.id} value={hostel.id}>{hostel.name} · {hostel.city}</option>)}
+                    </select>
+                  </label>
+                  <label>Reason
+                    <select className="input" value={reportReason} onChange={(event) => setReportReason(event.target.value)}>
+                      <option>Suspected fake listing</option>
+                      <option>Misleading information</option>
+                      <option>Duplicate listing</option>
+                      <option>Unsafe or inappropriate content</option>
+                      <option>Hostel does not exist at this location</option>
+                    </select>
+                  </label>
+                  <label>Additional details
+                    <textarea className="input textarea" rows="4" value={reportDetails} onChange={(event) => setReportDetails(event.target.value)} placeholder="Share what you or your circle observed..." />
+                  </label>
+                  <button className="btn btn-primary" type="submit" disabled={reportSubmitting}>{reportSubmitting ? "Submitting..." : "Submit listing report"}</button>
+                </form>
+                <section className="panel">
+                  <h2>My listing reports ({hostelReports.length})</h2>
+                  {hostelReports.length ? hostelReports.map((report) => (
+                    <div className="list-row" key={report.id}>
+                      <div><strong>{report.hostel_name}</strong><small>{report.reason}</small></div>
+                      <span className={`status ${report.status === "resolved" ? "green" : ""}`}>{report.status}</span>
+                    </div>
+                  )) : <p className="muted">You have not reported a listing yet.</p>}
+                </section>
+              </div>
             )}
           </section>
         )}

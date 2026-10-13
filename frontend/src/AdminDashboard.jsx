@@ -13,6 +13,9 @@ export default function AdminDashboard() {
   const [pending, setPending] = useState([]);
   const [complaints, setComplaints] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [hostelReports, setHostelReports] = useState([]);
+  const [showAddHostel, setShowAddHostel] = useState(false);
+  const [newHostel, setNewHostel] = useState({ name: "", city: "", address: "", description: "", gender: "Co-ed", room_type: "Standard", price_per_month: "", total_beds: "1", image_url: "", amenities: "" });
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState({});
   const [notice, setNotice] = useState("");
@@ -61,11 +64,53 @@ export default function AdminDashboard() {
       setPending(Array.isArray(overviewData?.pendingHostels) ? overviewData.pendingHostels : []);
       setHostels(Array.isArray(overviewData?.allHostels) ? overviewData.allHostels : []);
       setComplaints(Array.isArray(overviewData?.complaints) ? overviewData.complaints : []);
+      setHostelReports(Array.isArray(overviewData?.hostelReports) ? overviewData.hostelReports : []);
       setAuditLogs(Array.isArray(overviewData?.auditLogs) ? overviewData.auditLogs : []);
     } catch (e) {
       setError(e.message || "Could not load admin dashboard");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addHostel = async (event) => {
+    event.preventDefault();
+    try {
+      const payload = {
+        ...newHostel,
+        price_per_month: Number(newHostel.price_per_month),
+        total_beds: Number(newHostel.total_beds),
+        amenities: newHostel.amenities.split(",").map((item) => item.trim()).filter(Boolean),
+      };
+      const response = await fetch(`${API}/auth/admin/hostels`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders(token) },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Could not add hostel");
+      setShowAddHostel(false);
+      setNewHostel({ name: "", city: "", address: "", description: "", gender: "Co-ed", room_type: "Standard", price_per_month: "", total_beds: "1", image_url: "", amenities: "" });
+      setNotice("Hostel added and approved successfully.");
+      loadData();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const updateHostelReport = async (id, status) => {
+    try {
+      const response = await fetch(`${API}/hostel-reports/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders(token) },
+        body: JSON.stringify({ status }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Could not update report");
+      setHostelReports((current) => current.map((report) => report.id === id ? { ...report, status } : report));
+      setNotice(`Hostel report marked as ${status}.`);
+    } catch (e) {
+      setError(e.message);
     }
   };
 
@@ -156,6 +201,33 @@ export default function AdminDashboard() {
         {notice && <div className="account-alert success">{notice}</div>}
         {error && <div className="account-alert error">{error}</div>}
 
+        <section className="panel admin-add-hostel">
+          <div className="panel-head">
+            <div>
+              <h2>Manual hostel listings</h2>
+              <p className="muted">Add an approved listing directly when an owner cannot register or a listing is sourced offline.</p>
+            </div>
+            <button className="btn btn-primary small" onClick={() => setShowAddHostel((value) => !value)}>
+              {showAddHostel ? "Close form" : "Add hostel manually"}
+            </button>
+          </div>
+          {showAddHostel && (
+            <form className="admin-hostel-form" onSubmit={addHostel}>
+              <label>Name<input className="input" required value={newHostel.name} onChange={(e) => setNewHostel({ ...newHostel, name: e.target.value })} /></label>
+              <label>City<input className="input" required value={newHostel.city} onChange={(e) => setNewHostel({ ...newHostel, city: e.target.value })} /></label>
+              <label>Address<input className="input" value={newHostel.address} onChange={(e) => setNewHostel({ ...newHostel, address: e.target.value })} /></label>
+              <label>Type<select className="input" value={newHostel.gender} onChange={(e) => setNewHostel({ ...newHostel, gender: e.target.value })}><option>Co-ed</option><option>Boys</option><option>Girls</option></select></label>
+              <label>Room type<input className="input" value={newHostel.room_type} onChange={(e) => setNewHostel({ ...newHostel, room_type: e.target.value })} /></label>
+              <label>Monthly rent<input className="input" type="number" min="0" required value={newHostel.price_per_month} onChange={(e) => setNewHostel({ ...newHostel, price_per_month: e.target.value })} /></label>
+              <label>Total beds<input className="input" type="number" min="1" step="1" required value={newHostel.total_beds} onChange={(e) => setNewHostel({ ...newHostel, total_beds: e.target.value })} /></label>
+              <label>Image URL<input className="input" type="url" value={newHostel.image_url} onChange={(e) => setNewHostel({ ...newHostel, image_url: e.target.value })} /></label>
+              <label className="admin-hostel-form-wide">Amenities <span className="optional-label">(comma separated)</span><input className="input" value={newHostel.amenities} onChange={(e) => setNewHostel({ ...newHostel, amenities: e.target.value })} /></label>
+              <label className="admin-hostel-form-wide">Description<textarea className="input textarea" value={newHostel.description} onChange={(e) => setNewHostel({ ...newHostel, description: e.target.value })} /></label>
+              <button className="btn btn-primary admin-hostel-form-wide" type="submit">Add approved listing</button>
+            </form>
+          )}
+        </section>
+
         <div className="stats">
           <div className="stat">
             <span>Registered users</span>
@@ -201,6 +273,25 @@ export default function AdminDashboard() {
           ) : (
             <p className="muted">No pending hostel requests waiting for approval.</p>
           )}
+        </section>
+
+        <section className="panel" style={{ marginTop: 24 }}>
+          <div className="panel-head"><h2>Student fake-listing reports ({hostelReports.length})</h2></div>
+          {hostelReports.length ? hostelReports.map((report) => (
+            <div className="list-row" key={report.id} style={{ alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <strong>{report.hostel_name}</strong>
+                <small>{report.hostel_city} · Reported by {report.student_name} ({report.student_email}) · {report.reason}</small>
+                {report.details && <p>{report.details}</p>}
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                {report.status !== "reviewing" && <button className="btn btn-outline small" onClick={() => updateHostelReport(report.id, "reviewing")}>Review</button>}
+                {report.status !== "resolved" && <button className="btn btn-primary small" onClick={() => updateHostelReport(report.id, "resolved")}>Resolve</button>}
+                {report.status !== "dismissed" && <button className="btn btn-outline small" onClick={() => updateHostelReport(report.id, "dismissed")}>Dismiss</button>}
+              </div>
+              <span className={`status ${report.status === "resolved" ? "green" : ""}`}>{report.status}</span>
+            </div>
+          )) : <p className="muted">No student fake-listing reports yet.</p>}
         </section>
 
         {/* All Hostels Status Moderation */}
