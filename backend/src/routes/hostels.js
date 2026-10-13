@@ -68,7 +68,22 @@ router.get("/",async(req,res)=>{
     if(q){w.push("(LOWER(h.name) LIKE LOWER(?) OR LOWER(h.city) LIKE LOWER(?) OR LOWER(h.address) LIKE LOWER(?))");const x=`%${q}%`;p.push(x,x,x);}
     if(w.length)sql+=" WHERE "+w.join(" AND "); sql+=" GROUP BY h.id ORDER BY h.id DESC";
     const hs=await db.all(sql,...p);
-    for(const h of hs) h.photos=await db.all("SELECT id,url FROM hostel_photos WHERE hostel_id=? ORDER BY id DESC",h.id);
+    for (const h of hs) {
+      try {
+        h.amenities = JSON.parse(h.amenities || "[]");
+      } catch {
+        h.amenities = [];
+      }
+      try {
+        h.rules = JSON.parse(h.rules || "[]");
+      } catch {
+        h.rules = [];
+      }
+      h.photos = await db.all(
+        "SELECT id,url FROM hostel_photos WHERE hostel_id=? ORDER BY id DESC",
+        h.id
+      );
+    }
     res.json(hs);
   }catch(e){res.status(500).json({message:"Failed to load hostels",error:e.message});}
 });

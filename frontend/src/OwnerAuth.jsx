@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Building2, CheckCircle2, ShieldCheck, UserRound } from "lucide-react";
 import { API_BASE } from "./api";
 
 const ROLE_LABELS = {
@@ -71,41 +72,49 @@ export default function OwnerAuth({ signup = false }) {
   };
 
   return (
-    <main className="auth-page">
-      <div className="auth-card">
-        <Link to="/" className="brand auth-brand"><span className="brand-mark">H</span>HostelHub</Link>
-        <div className="eyebrow">{signup ? "JOIN HOSTELHUB" : "WELCOME BACK"}</div>
-        <h1>{signup ? "Create your account" : "Sign in to HostelHub"}</h1>
-        <p>{signup ? "Choose the account type you want to create." : "Choose your role, then enter your account details."}</p>
+    <main className="auth-page-navy">
+      <div className="auth-shell">
+        <section className="auth-story">
+          <Link to="/" className="brand"><span className="brand-mark">H</span>HostelHub</Link>
+          <div className="auth-story-copy">
+            <div className="auth-kicker">STUDENT LIVING, MADE SIMPLE</div>
+            <h1>{signup ? <>Make space for a <em>better stay.</em></> : <>Welcome back to <em>better living.</em></>}</h1>
+            <p>Find verified hostels, compare rooms, check vacancies, and manage your stay in one calm, simple place.</p>
+          </div>
+          <div className="auth-trust"><ShieldCheck size={17} /> Secure accounts <span>·</span> Verified listings</div>
+        </section>
 
-        <div className="auth-tabs" role="group" aria-label="Choose account role">
-          <button type="button" className={role === "student" ? "active" : ""} onClick={() => setRole("student")}>Student</button>
-          <button type="button" className={role === "owner" ? "active" : ""} onClick={() => setRole("owner")}>Owner</button>
-          {!signup && <button type="button" className={role === "admin" ? "active" : ""} onClick={() => setRole("admin")}>Admin</button>}
-        </div>
+        <section className="auth-card-navy">
+          <div className="auth-card-heading">
+            <div className="eyebrow">{signup ? "JOIN HOSTELHUB" : "WELCOME BACK"}</div>
+            <h2>{signup ? "Create your account" : "Sign in to HostelHub"}</h2>
+            <p>{signup ? "Choose the account type you want to create." : "Select your role and enter your details."}</p>
+          </div>
 
-        {error && <div className="empty" role="alert" style={{ margin: "16px 0" }}>{error}</div>}
+          <div className="role-picker" role="group" aria-label="Choose account role">
+            <button type="button" className={`role-option ${role === "student" ? "active" : ""}`} onClick={() => setRole("student")}><UserRound size={18} />Student</button>
+            <button type="button" className={`role-option ${role === "owner" ? "active" : ""}`} onClick={() => setRole("owner")}><Building2 size={18} />Owner</button>
+            {!signup && <button type="button" className={`role-option ${role === "admin" ? "active" : ""}`} onClick={() => setRole("admin")}><ShieldCheck size={18} />Admin</button>}
+          </div>
 
-        <form onSubmit={submit} style={{ display: "grid", gap: 16 }}>
-          {signup && <>
-            <label>Full name<input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required /></label>
-            <label>Phone number <span className="muted">(optional)</span><input className="input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" /></label>
-          </>}
-          <label>Email<input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
-          <label>Password<input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={signup ? "new-password" : "current-password"} minLength={signup ? 8 : undefined} required /></label>
-          {signup && role === "owner" && <p className="muted">Your hostel listings may require administrator approval before appearing publicly.</p>}
-          {signup && role === "student" && <p className="muted">You can browse hostels without an account; sign in to use bookings, wishlists and complaints.</p>}
-          {!signup && role === "admin" && <p className="muted">Administrator accounts cannot be created through public signup.</p>}
-          <button className="btn btn-primary full" type="submit" disabled={loading}>
-            {loading ? "Please wait…" : signup ? `Create ${ROLE_LABELS[role]} Account` : `Sign in as ${ROLE_LABELS[role]}`}
-          </button>
-        </form>
+          <div className="role-description"><CheckCircle2 size={16} /> {role === "admin" ? "Manage users, listings, approvals, and platform reports." : role === "owner" ? "List your hostel, manage vacancies, and respond to residents." : "Browse freely, then sign in when you want to book or save a hostel."}</div>
+          {error && <div className="account-alert error" role="alert">{error}</div>}
 
-        <p className="auth-switch">
-          {signup ? "Already have an account? " : "Don't have an account? "}
-          <Link to={signup ? "/login" : "/signup"}>{signup ? "Sign in" : "Sign up"}</Link>
-        </p>
-        <p className="muted" style={{ fontSize: 12 }}>Admin accounts are provisioned securely; public signup cannot create an administrator.</p>
+          <form className="auth-form" onSubmit={submit}>
+            {signup && <>
+              <label>Full name<input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required /></label>
+              <label>Phone number <span className="optional-label">(optional)</span><input className="input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" /></label>
+            </>}
+            <label>Email<input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required /></label>
+            <label>Password<input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={signup ? "new-password" : "current-password"} minLength={signup ? 8 : undefined} required /></label>
+            {signup && role === "owner" && <p className="muted">Your hostel listing may require administrator approval before appearing publicly.</p>}
+            {!signup && role === "admin" && <p className="muted">Administrator accounts are provisioned securely and cannot be created through public signup.</p>}
+            <button className="btn btn-primary full auth-submit" type="submit" disabled={loading}>{loading ? "Please wait…" : signup ? `Create ${ROLE_LABELS[role]} Account` : `Sign in as ${ROLE_LABELS[role]}`}</button>
+          </form>
+
+          <p className="auth-switch">{signup ? "Already have an account? " : "Don't have an account? "}<Link to={signup ? "/login" : "/signup"}>{signup ? "Sign in" : "Sign up"}</Link></p>
+          <p className="auth-legal">You can continue browsing hostels without signing in. An account is required for bookings, wishlists, reviews, and dashboards.</p>
+        </section>
       </div>
     </main>
   );

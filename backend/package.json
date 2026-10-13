@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/server.js",
+    "prestart": "node seed-demo.js",
     "start": "node src/server.js",
     "test": "node test-suite.js"
   },

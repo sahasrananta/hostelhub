@@ -19,6 +19,37 @@ import AccountSettings from "./AccountSettings";
 import { API_BASE, API_ORIGIN } from "./api";
 import { hostels } from "./data/hostels";
 
+function parseJsonArray(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function RequireAuth({ user, children }) {
+  if (user) return children;
+  return (
+    <main className="page">
+      <div className="container narrow">
+        <div className="empty auth-required">
+          <LogIn size={38} />
+          <h2>Sign in to continue</h2>
+          <p>Create an account or sign in to use this feature. Browsing hostels does not require an account.</p>
+          <div className="auth-required-actions">
+            <Link to="/login" className="btn btn-primary">Sign in</Link>
+            <Link to="/signup" className="btn btn-outline">Create account</Link>
+            <Link to="/hostels" className="btn btn-ghost">Continue browsing</Link>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 function App() {
   const [wishlist, setWishlist] = useState([]);
   const [toast, setToast] = useState("");
@@ -101,19 +132,19 @@ function App() {
         <Route path="/hostels/:id" element={<HostelDetails toggleWishlist={toggleWishlist} wishlist={wishlist} user={user} notify={notify} />} />
         <Route path="/login" element={<OwnerAuth />} />
         <Route path="/signup" element={<OwnerAuth signup />} />
-        <Route path="/owner" element={<OwnerDashboardConnected />} />
-        <Route path="/owner/hostel" element={<OwnerHostelConnected notify={notify} />} />
-        <Route path="/owner/rooms" element={<OwnerRooms notify={notify} />} />
-        <Route path="/owner/menu" element={<OwnerMenuConnected notify={notify} />} />
-        <Route path="/owner/updates" element={<OwnerUpdatesConnected notify={notify} />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/resident" element={<StudentDashboard notify={notify} />} />
-        <Route path="/complaints" element={<StudentComplaints />} />
-        <Route path="/account-settings" element={<AccountSettings />} />
+        <Route path="/owner" element={<RequireAuth user={user}><OwnerDashboardConnected /></RequireAuth>} />
+        <Route path="/owner/hostel" element={<RequireAuth user={user}><OwnerHostelConnected notify={notify} /></RequireAuth>} />
+        <Route path="/owner/rooms" element={<RequireAuth user={user}><OwnerRooms notify={notify} /></RequireAuth>} />
+        <Route path="/owner/menu" element={<RequireAuth user={user}><OwnerMenuConnected notify={notify} /></RequireAuth>} />
+        <Route path="/owner/updates" element={<RequireAuth user={user}><OwnerUpdatesConnected notify={notify} /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth user={user}><AdminDashboard /></RequireAuth>} />
+        <Route path="/resident" element={<RequireAuth user={user}><StudentDashboard notify={notify} /></RequireAuth>} />
+        <Route path="/complaints" element={<RequireAuth user={user}><StudentComplaints /></RequireAuth>} />
+        <Route path="/account-settings" element={<RequireAuth user={user}><AccountSettings /></RequireAuth>} />
 
         <Route path="/booking/:id" element={<Booking user={user} notify={notify} />} />
         <Route path="/payment/:id" element={<Payment user={user} notify={notify} />} />
-        <Route path="/wishlist" element={<Wishlist toggleWishlist={toggleWishlist} />} />
+        <Route path="/wishlist" element={<RequireAuth user={user}><Wishlist toggleWishlist={toggleWishlist} /></RequireAuth>} />
       </Routes>
       <Footer />
       {toast && <div className="toast">{toast}</div>}
@@ -160,9 +191,10 @@ function Header({ user, wishlistCount }) {
 
 function Home({ toggleWishlist, wishlist }) {
   const [featuredHostels, setFeaturedHostels] = useState([]);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(() => !localStorage.getItem("hostelhub_user"));
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/hostels`)
+    fetch(`${API_BASE}/hostels?city=${encodeURIComponent(initialCity)}`)
       .then((response) => { if (!response.ok) throw new Error("Could not load hostels"); return response.json(); })
       .then((data) => { if (!cancelled) setFeaturedHostels(Array.isArray(data) ? data.slice(0, 3) : []); })
       .catch(() => { if (!cancelled) setFeaturedHostels([]); });
@@ -222,6 +254,21 @@ function Home({ toggleWishlist, wishlist }) {
           <Link to="/owner" className="btn btn-light">Open Owner Portal <ArrowRight size={18}/></Link>
         </div>
       </section>
+      {showAuthPrompt && (
+        <div className="auth-prompt-backdrop" role="presentation">
+          <section className="auth-prompt" role="dialog" aria-modal="true" aria-labelledby="auth-prompt-title">
+            <button className="auth-prompt-close" onClick={() => setShowAuthPrompt(false)} aria-label="Continue browsing without signing in"><X size={20} /></button>
+            <div className="eyebrow">WELCOME TO HOSTELHUB</div>
+            <h2 id="auth-prompt-title">Find your next hostel</h2>
+            <p>Sign in or create an account to save hostels, book rooms, post reviews, and access your dashboard. You can continue browsing without signing in.</p>
+            <div className="auth-required-actions">
+              <Link to="/login" className="btn btn-primary">Sign in</Link>
+              <Link to="/signup" className="btn btn-outline">Create account</Link>
+              <button className="btn btn-ghost" onClick={() => setShowAuthPrompt(false)}>Continue browsing</button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
@@ -283,7 +330,7 @@ function Browse({ toggleWishlist, wishlist }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/hostels`)
+    fetch(`${API_BASE}/hostels?city=${encodeURIComponent(initialCity)}`)
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to load hostels");
@@ -302,7 +349,7 @@ function Browse({ toggleWishlist, wishlist }) {
   }, []);
 
   let list = hostelList.filter((h) =>
-    (gender === "All" || h.gender === gender) &&
+    (gender === "All" || h.gender === gender || (gender === "Co-ed" && h.gender === "Co-living")) &&
     Number(h.price || 0) <= maxPrice &&
     `${h.name || ""} ${h.city || ""} ${h.address || ""}`.toLowerCase().includes(query.toLowerCase())
   );
@@ -335,10 +382,12 @@ function Browse({ toggleWishlist, wishlist }) {
 }
 
 function HostelCard({ hostel:h, liked, onLike, horizontal=false }) {
-  const imageUrl = h.photos?.[0]?.url ? `${API_ORIGIN}${h.photos[0].url}` : null;
+  const imageUrl = h.photos?.[0]?.url
+    ? `${API_ORIGIN}${h.photos[0].url}`
+    : h.image_url || null;
   const price = Number(h.price || 0);
   const rating = Number(h.rating || 0).toFixed(1);
-  const amenities = Array.isArray(h.amenities) ? h.amenities : [];
+  const amenities = parseJsonArray(h.amenities);
   return (
     <article className={horizontal ? "hostel-card horizontal" : "hostel-card"}>
       <div className={`hostel-image ${imageUrl ? "" : "img-sunrise"}`} style={imageUrl ? {backgroundImage:`url(${imageUrl})`} : undefined}>
@@ -429,7 +478,7 @@ function HostelDetails({ toggleWishlist, wishlist, user, notify }) {
   const rooms = h.rooms || [];
   const menu = h.menu || [];
   const reviews = h.reviews || [];
-  const amenities = Array.isArray(h.amenities) ? h.amenities : [];
+  const amenities = parseJsonArray(h.amenities);
   const availableBeds = rooms.reduce((sum, room) => sum + Number(room.available_beds || 0), 0);
   const averageRating = h.rating ? Number(h.rating).toFixed(1) : "0.0";
 

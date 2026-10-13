@@ -77,6 +77,15 @@ npm test      # Runs 47-point automated verification suite
 npm run dev   # Starts backend on http://localhost:5000
 ```
 
+### Demo administrator credentials
+
+The demo seed creates the administrator account below when the database is initialized:
+
+- Email: `admin@hostelhub.local`
+- Password: `Admin@123`
+
+Change this password before using the application with real data.
+
 ## Production Deployment Checklist
 1. **Environment Variables**:
    - Set `JWT_SECRET` to a high-entropy 256-bit random hex string.
