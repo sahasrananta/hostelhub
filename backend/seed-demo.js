@@ -76,6 +76,39 @@ const demoHostels = [
   }
 ];
 
+const hyderabadAreas = [
+  "Bachupally", "Miyapur", "Nizampet", "Kukatpally", "Gachibowli",
+  "Hitech City", "Madhapur", "Kondapur", "Ameerpet", "Begumpet",
+  "Secunderabad", "Manikonda", "Sainikpuri", "Uppal", "Dilsukhnagar",
+  "LB Nagar", "Mehdipatnam", "Tolichowki", "Hafeezpet", "Nallagandla",
+  "Tarnaka", "Kothapet", "Somajiguda", "Masab Tank", "Panjagutta",
+  "Kompally", "Alwal", "Nagole", "Kachiguda", "Abids"
+];
+const generatedImages = [
+  "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
+];
+const generatedHostels = Array.from({ length: 94 }, (_, index) => {
+  const area = hyderabadAreas[index % hyderabadAreas.length];
+  const gender = ["Boys", "Girls", "Co-living"][index % 3];
+  const price = 4500 + (index % 8) * 500;
+  return {
+    name: `Hyderabad Student Home ${String(index + 1).padStart(2, "0")}`,
+    gender,
+    price,
+    beds: 6 + (index % 4) * 4,
+    address: `Near ${area}, Hyderabad`,
+    city: "Hyderabad",
+    description: `Comfortable ${gender.toLowerCase()} student accommodation near ${area} with practical amenities, secure access, and flexible monthly rooms.`,
+    amenities: ["WiFi", "CCTV", index % 2 ? "Laundry" : "Food", "Study Room", "Power Backup"],
+    roomType: ["2 Sharing", "3 Sharing", "4 Sharing"][index % 3],
+    image: generatedImages[index % generatedImages.length]
+  };
+});
+demoHostels.push(...generatedHostels);
+
 async function seedDemoData() {
   await initDb();
 

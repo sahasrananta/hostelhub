@@ -162,7 +162,6 @@ function Header({ user, wishlistCount }) {
         <nav className={open ? "nav-links open" : "nav-links"}>
           <Link to="/hostels">Browse Hostels</Link>
           <a href="/#how">How it works</a>
-          <a href="/#owners">For Owners</a>
           {(user?.role === "student" || user?.role === "resident") && (
             <>
               <Link to="/resident">Resident Portal</Link>
@@ -176,8 +175,8 @@ function Header({ user, wishlistCount }) {
           </Link>
           {user ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Link to="/account-settings" className="user-pill" title="Account settings">
-                {user.name} <span style={{ opacity: 0.7, fontSize: 11 }}>({user.role})</span>
+              <Link to="/account-settings" className="btn btn-outline small" title="Account settings">
+                <Settings size={15} /> Account
               </Link>
             </div>
           ) : (
@@ -248,12 +247,6 @@ function Home({ toggleWishlist, wishlist }) {
         </div>
       </section>
 
-      <section className="owner-banner" id="owners">
-        <div className="container owner-banner-inner">
-          <div><div className="eyebrow">FOR HOSTEL OWNERS</div><h2>Run your hostel without the paperwork.</h2><p>Manage vacancies, pricing, food menus, bookings, residents and announcements from one dashboard.</p></div>
-          <Link to="/owner" className="btn btn-light">Open Owner Portal <ArrowRight size={18}/></Link>
-        </div>
-      </section>
       {showAuthPrompt && (
         <div className="auth-prompt-backdrop" role="presentation">
           <section className="auth-prompt" role="dialog" aria-modal="true" aria-labelledby="auth-prompt-title">
@@ -1354,11 +1347,6 @@ function Footer(){
           <Link to="/hostels">Hostels</Link>
           <Link to="/hostels">Popular cities</Link>
           <Link to="/wishlist">Saved Wishlist</Link>
-        </div>
-        <div>
-          <strong>For owners</strong>
-          <Link to="/owner">Owner portal</Link>
-          <Link to="/owner/hostel">List your hostel</Link>
         </div>
         <div>
           <strong>Resident</strong>
