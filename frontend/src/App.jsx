@@ -17,6 +17,7 @@ import StudentDashboard from "./StudentDashboard";
 import StudentComplaints from "./StudentComplaints";
 import AccountSettings from "./AccountSettings";
 import { API_BASE, API_ORIGIN } from "./api";
+import { hostels } from "./data/hostels";
 
 function App() {
   const [wishlist, setWishlist] = useState([]);

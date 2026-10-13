@@ -9,10 +9,10 @@ const demoHostels = [
     beds: 12,
     address: "Near Bachupally, Hyderabad",
     city: "Hyderabad",
-    description:
-      "DEMO LISTING — Student-friendly accommodation with Wi-Fi, study space and daily meals.",
-    amenities: ["WiFi", "Food", "Study Room", "Laundry"],
-    roomType: "3 Sharing"
+    description: "Comfortable student living with Wi-Fi, study rooms, daily meals, and secure entry in a vibrant campus zone.",
+    amenities: ["WiFi", "Food", "Study Room", "Laundry", "CCTV", "Parking"],
+    roomType: "3 Sharing",
+    image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=1200&q=80"
   },
   {
     name: "Green Stay Girls Hostel",
@@ -21,10 +21,10 @@ const demoHostels = [
     beds: 8,
     address: "Near Miyapur, Hyderabad",
     city: "Hyderabad",
-    description:
-      "DEMO LISTING — Girls accommodation with CCTV, food facilities and a quiet study area.",
-    amenities: ["WiFi", "Food", "CCTV", "Study Room"],
-    roomType: "2 Sharing"
+    description: "A bright, secure girls-only residence with housekeeping, study areas, and a calm, student-focused environment.",
+    amenities: ["WiFi", "Food", "CCTV", "Study Room", "Laundry", "Power Backup"],
+    roomType: "2 Sharing",
+    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80"
   },
   {
     name: "Student Comfort Residency",
@@ -33,10 +33,10 @@ const demoHostels = [
     beds: 10,
     address: "Near Nizampet, Hyderabad",
     city: "Hyderabad",
-    description:
-      "DEMO LISTING — Shared rooms with laundry, Wi-Fi and common study facilities.",
-    amenities: ["WiFi", "Laundry", "Parking", "Study Room"],
-    roomType: "4 Sharing"
+    description: "Affordable and well-maintained accommodation for engineering and degree students, with common lounges and transport access.",
+    amenities: ["WiFi", "Laundry", "Parking", "Study Room", "Common Room"],
+    roomType: "4 Sharing",
+    image: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1200&q=80"
   },
   {
     name: "Urban Student Living",
@@ -45,10 +45,34 @@ const demoHostels = [
     beds: 6,
     address: "Near Kukatpally, Hyderabad",
     city: "Hyderabad",
-    description:
-      "DEMO LISTING — Sample co-living listing created for the HostelHub project demonstration.",
-    amenities: ["WiFi", "Food", "CCTV", "Parking"],
-    roomType: "2 Sharing"
+    description: "Premium co-living with a social community feel, high-speed internet, and modern shared spaces for students.",
+    amenities: ["WiFi", "Food", "CCTV", "Parking", "Gym", "Common Room"],
+    roomType: "2 Sharing",
+    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
+  },
+  {
+    name: "Hill View Residency",
+    gender: "Girls",
+    price: 6200,
+    beds: 9,
+    address: "Near Hitech City, Hyderabad",
+    city: "Hyderabad",
+    description: "Well-connected girls hostel near tech parks and colleges with secure infrastructure and nutritious meals.",
+    amenities: ["WiFi", "Food", "Study Room", "CCTV", "Laundry"],
+    roomType: "3 Sharing",
+    image: "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=80"
+  },
+  {
+    name: "Metro Nest Boys Stay",
+    gender: "Boys",
+    price: 5600,
+    beds: 11,
+    address: "Near Gachibowli, Hyderabad",
+    city: "Hyderabad",
+    description: "A convenient student hostel near major colleges with active community spaces, filtration, and flexible monthly plans.",
+    amenities: ["WiFi", "Food", "Parking", "Study Room", "Power Backup"],
+    roomType: "3 Sharing",
+    image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=80"
   }
 ];
 
@@ -57,45 +81,36 @@ async function seedDemoData() {
 
   const db = await getDb();
 
-  // Find or create a demo owner account.
-  let owner = await db.get(
-    "SELECT id FROM users WHERE email = ?",
-    "demo-owner@hostelhub.local"
-  );
-
-  if (!owner) {
-    const passwordHash = await bcrypt.hash(
-      "DemoOwner@123",
-      10
+  let admin = await db.get("SELECT id FROM users WHERE email = ?", "admin@hostelhub.local");
+  if (!admin) {
+    const adminHash = await bcrypt.hash("Admin@123", 10);
+    const adminResult = await db.run(
+      "INSERT INTO users(name,email,password_hash,phone,role,is_active) VALUES(?,?,?,?,?,1)",
+      "HostelHub Admin",
+      "admin@hostelhub.local",
+      adminHash,
+      "9000000000",
+      "admin"
     );
+    admin = { id: adminResult.lastID };
+  }
 
+  let owner = await db.get("SELECT id FROM users WHERE email = ?", "demo-owner@hostelhub.local");
+  if (!owner) {
+    const passwordHash = await bcrypt.hash("DemoOwner@123", 10);
     const result = await db.run(
-      `
-      INSERT INTO users (
-        name,
-        email,
-        password_hash,
-        role,
-        is_active
-      )
-      VALUES (?, ?, ?, 'owner', 1)
-      `,
+      "INSERT INTO users(name,email,password_hash,phone,role,is_active) VALUES(?,?,?,?,?,1)",
       "HostelHub Demo Owner",
       "demo-owner@hostelhub.local",
-      passwordHash
+      passwordHash,
+      "9876543210",
+      "owner"
     );
-
-    owner = {
-      id: result.lastID
-    };
+    owner = { id: result.lastID };
   }
 
   for (const item of demoHostels) {
-    // Avoid creating duplicate demo hostels when rerunning.
-    let hostel = await db.get(
-      "SELECT id FROM hostels WHERE name = ?",
-      item.name
-    );
+    let hostel = await db.get("SELECT id FROM hostels WHERE name = ?", item.name);
 
     if (!hostel) {
       const result = await db.run(
@@ -108,9 +123,11 @@ async function seedDemoData() {
           description,
           gender,
           amenities,
-          rules
+          rules,
+          status,
+          image_url
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)
         `,
         owner.id,
         item.name,
@@ -121,24 +138,19 @@ async function seedDemoData() {
         JSON.stringify(item.amenities),
         JSON.stringify([
           "Follow hostel timings",
-          "Keep shared spaces clean"
-        ])
+          "Keep shared spaces clean",
+          "No visitors after 9 PM"
+        ]),
+        item.image
       );
 
-      hostel = {
-        id: result.lastID
-      };
-
+      hostel = { id: result.lastID };
       console.log("Added demo hostel:", item.name);
     } else {
       console.log("Hostel already exists:", item.name);
     }
 
-    // Add a room only when the hostel has no rooms.
-    const existingRoom = await db.get(
-      "SELECT id FROM rooms WHERE hostel_id = ? LIMIT 1",
-      hostel.id
-    );
+    const existingRoom = await db.get("SELECT id FROM rooms WHERE hostel_id = ? LIMIT 1", hostel.id);
 
     if (!existingRoom) {
       await db.run(
@@ -166,18 +178,15 @@ async function seedDemoData() {
   }
 
   console.log("\nDemo data setup completed.");
-  console.log("Existing hostel records were preserved.");
-  console.log(
-    "Demo owner: demo-owner@hostelhub.local"
-  );
-  console.log(
-    "Demo password: DemoOwner@123"
-  );
+  console.log("Demo admin: admin@hostelhub.local");
+  console.log("Demo admin password: Admin@123");
+  console.log("Demo owner: demo-owner@hostelhub.local");
+  console.log("Demo owner password: DemoOwner@123");
 }
 
 seedDemoData()
   .then(() => process.exit(0))
-  .catch(error => {
+  .catch((error) => {
     console.error("Failed to seed demo data:", error);
     process.exit(1);
   });
