@@ -16,15 +16,35 @@ router.get("/hostel/:hostelId", async (req, res) => {
     const db = await getDb();
 
     const rooms = await db.all(
-      "SELECT r.* FROM rooms r JOIN hostels h ON h.id = r.hostel_id WHERE r.hostel_id = ? AND h.status = 'approved' ORDER BY r.id",
+      `SELECT r.*, COALESCE((SELECT json_group_array(json_object('id', b.id, 'bed_label', b.bed_label, 'status', b.status))
+        FROM beds b WHERE b.room_id = r.id), '[]') AS beds
+       FROM rooms r JOIN hostels h ON h.id = r.hostel_id
+       WHERE r.hostel_id = ? AND h.status = 'approved' ORDER BY r.id`,
       req.params.hostelId
     );
 
-    res.json(rooms);
+    res.json(rooms.map((room) => ({ ...room, beds: JSON.parse(room.beds || "[]") })));
   } catch (error) {
     res.status(500).json({
       message: "Failed to load rooms",
       error: error.message
+    });
+
+    router.get("/owner/hostel/:hostelId", authenticate, authorize("owner"), async (req, res) => {
+      try {
+        const db = await getDb();
+        const hostel = await db.get("SELECT id FROM hostels WHERE id = ? AND owner_id = ?", req.params.hostelId, req.user.id);
+        if (!hostel) return res.status(404).json({ message: "Hostel not found" });
+        const rooms = await db.all(
+          `SELECT r.*, COALESCE((SELECT json_group_array(json_object('id', b.id, 'bed_label', b.bed_label, 'status', b.status))
+            FROM beds b WHERE b.room_id = r.id), '[]') AS beds
+           FROM rooms r WHERE r.hostel_id = ? ORDER BY r.floor_number, r.room_number, r.id`,
+          req.params.hostelId
+        );
+        res.json(rooms.map((room) => ({ ...room, beds: JSON.parse(room.beds || "[]") })));
+      } catch (error) {
+        res.status(500).json({ message: "Failed to load owner rooms", error: error.message });
+      }
     });
   }
 });
@@ -54,7 +74,9 @@ router.post(
         price_per_month,
         total_beds,
         available_beds,
-        description
+        description,
+        floor_number = 1,
+        room_number = null
       } = req.body;
 
       if (!ROOM_TYPES.includes(room_type)) {
@@ -96,15 +118,21 @@ router.post(
       const result = await db.run(
         `INSERT INTO rooms
         (hostel_id, room_type, price_per_month, total_beds,
-         available_beds, description)
-        VALUES (?, ?, ?, ?, ?, ?)`,
+         available_beds, description, floor_number, room_number)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         hostel.id,
         room_type,
         price,
         total,
         available,
-        description?.trim() || null
+        description?.trim() || null,
+        Number.isInteger(Number(floor_number)) && Number(floor_number) > 0 ? Number(floor_number) : 1,
+        room_number?.toString().trim() || null
       );
+
+      for (let index = 1; index <= total; index += 1) {
+        await db.run("INSERT INTO beds(room_id, bed_label) VALUES(?, ?)", result.lastID, `Bed ${index}`);
+      }
 
       const room = await db.get(
         "SELECT * FROM rooms WHERE id = ?",
@@ -149,7 +177,9 @@ router.put(
         price_per_month,
         total_beds,
         available_beds,
-        description
+        description,
+        floor_number = 1,
+        room_number = null
       } = req.body;
 
       if (!ROOM_TYPES.includes(room_type)) {
@@ -193,15 +223,22 @@ router.put(
       await db.run(
         `UPDATE rooms
          SET room_type = ?, price_per_month = ?, total_beds = ?,
-             available_beds = ?, description = ?
+             available_beds = ?, description = ?, floor_number = ?, room_number = ?
          WHERE id = ?`,
         room_type,
         price,
         total,
         available,
         description?.trim() || null,
+        Number.isInteger(Number(floor_number)) && Number(floor_number) > 0 ? Number(floor_number) : 1,
+        room_number?.toString().trim() || null,
         room.id
       );
+
+      const bedCount = await db.get("SELECT COUNT(*) AS count FROM beds WHERE room_id = ?", room.id);
+      for (let index = bedCount.count + 1; index <= total; index += 1) {
+        await db.run("INSERT INTO beds(room_id, bed_label) VALUES(?, ?)", room.id, `Bed ${index}`);
+      }
 
       res.json(
         await db.get("SELECT * FROM rooms WHERE id = ?", room.id)

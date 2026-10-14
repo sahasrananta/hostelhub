@@ -197,8 +197,8 @@ function Header({ user, wishlistCount }) {
         <Link to="/" className="brand"><span className="brand-mark">H</span>HostelHub</Link>
         <button className="mobile-menu" onClick={() => setOpen(!open)}>{open ? <X/> : <Menu/>}</button>
         <nav className={open ? "nav-links open" : "nav-links"}>
-          <Link to="/hostels">Browse Hostels</Link>
-          <a href="/#how">How it works</a>
+          {!isOwner && !isAdmin && <Link to="/hostels">Browse Hostels</Link>}
+          {!isOwner && !isAdmin && <a href="/#how">How it works</a>}
           {isStudent && !isResident && (
             <>
               <Link to="/resident">My Bookings</Link>
@@ -1021,7 +1021,9 @@ function OwnerRooms({ notify }) {
     price_per_month: "",
     total_beds: "",
     available_beds: "",
-    description: ""
+    description: "",
+    floor_number: "1",
+    room_number: ""
   });
 
   const token = localStorage.getItem("hostelhub_token");
@@ -1058,7 +1060,7 @@ function OwnerRooms({ notify }) {
       const hostel = hostelData[0];
       setHostelId(String(hostel.id));
 
-      const roomResponse = await fetch(`${API}/rooms/hostel/${hostel.id}`, {
+      const roomResponse = await fetch(`${API}/rooms/owner/hostel/${hostel.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const roomData = await roomResponse.json();
@@ -1086,7 +1088,9 @@ function OwnerRooms({ notify }) {
         price_per_month: String(existingRoom.price_per_month),
         total_beds: String(existingRoom.total_beds),
         available_beds: String(existingRoom.available_beds),
-        description: existingRoom.description || ""
+        description: existingRoom.description || "",
+        floor_number: String(existingRoom.floor_number || 1),
+        room_number: existingRoom.room_number || ""
       });
     } else {
       setForm({
@@ -1094,7 +1098,9 @@ function OwnerRooms({ notify }) {
         price_per_month: "",
         total_beds: "",
         available_beds: "",
-        description: ""
+        description: "",
+        floor_number: "1",
+        room_number: ""
       });
     }
 
@@ -1146,7 +1152,9 @@ function OwnerRooms({ notify }) {
       ...form,
       price_per_month: price,
       total_beds: total,
-      available_beds: available
+      available_beds: available,
+      floor_number: Number(form.floor_number) || 1,
+      room_number: form.room_number.trim() || null
     };
 
     try {
@@ -1255,7 +1263,9 @@ function OwnerRooms({ notify }) {
                         price_per_month: room ? String(room.price_per_month) : "",
                         total_beds: room ? String(room.total_beds) : "",
                         available_beds: room ? String(room.available_beds) : "",
-                        description: room?.description || ""
+                        description: room?.description || "",
+                        floor_number: String(room?.floor_number || 1),
+                        room_number: room?.room_number || ""
                       });
                     }}
                   >
@@ -1292,6 +1302,20 @@ function OwnerRooms({ notify }) {
                       onChange={(event) => changeField("total_beds", event.target.value)}
                       placeholder="Example: 12"
                     />
+                  </label>
+                </div>
+
+                <div className="two">
+                  <label>
+                    Floor number
+                    <input className="input" type="number" min="1" required value={form.floor_number}
+                      onChange={(event) => changeField("floor_number", event.target.value)} />
+                  </label>
+                  <label>
+                    Room number or name
+                    <input className="input" value={form.room_number}
+                      onChange={(event) => changeField("room_number", event.target.value)}
+                      placeholder="Example: 201" />
                   </label>
                 </div>
 
@@ -1336,8 +1360,11 @@ function OwnerRooms({ notify }) {
                     <div className="room-admin-row" key={room.id}>
                       <div>
                         <BedDouble />
-                        <strong>{room.room_type}</strong>
-                        <small>{room.total_beds} total beds</small>
+                        <strong>{room.room_type} · Floor {room.floor_number || 1}{room.room_number ? ` · Room ${room.room_number}` : ""}</strong>
+                        <small>{room.total_beds} total beds · {room.available_beds} available</small>
+                        {room.beds?.length > 0 && <div className="bed-grid">
+                          {room.beds.map((bed) => <span key={bed.id} className={`bed-chip ${bed.status}`}>{bed.bed_label}</span>)}
+                        </div>}
                       </div>
                       <div>
                         <small>Monthly price per bed</small>

@@ -48,3 +48,29 @@ body{background:#f7f9fc;color:var(--ink)}.brand-mark,.btn-primary,.owner-banner{
 .auth-page-navy{min-height:calc(100vh - 76px);padding:44px 20px;background:linear-gradient(140deg,#0a1f39,#173d65);display:grid;place-items:center}.auth-shell{width:min(1060px,100%);display:grid;grid-template-columns:1fr 1fr;background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 30px 90px #020b1780}.auth-story{background:linear-gradient(155deg,#102b4e,#1d4b78);color:white;padding:42px;display:flex;flex-direction:column;justify-content:space-between;min-height:600px}.auth-story .brand{color:#fff}.auth-story .brand-mark{background:#fff;color:var(--navy)}.auth-story-copy{max-width:390px;padding:45px 0}.auth-kicker{font-size:11px;letter-spacing:2px;font-weight:800;color:#b9d4ef}.auth-story h1{font-size:clamp(38px,4.4vw,56px);letter-spacing:-2px;line-height:1.04;margin:15px 0}.auth-story h1 em{font-family:Georgia,serif;font-weight:400;color:#b9d4ef}.auth-story-copy p{color:#d6e3f0;line-height:1.7;max-width:330px}.auth-trust{display:flex;align-items:center;gap:8px;font-size:12px;color:#d8e6f4}.auth-card-navy{padding:40px;align-self:center}.auth-card-heading h2{font-size:30px;letter-spacing:-1px;margin:0 0 8px;color:var(--navy)}.auth-card-heading p{color:var(--muted);font-size:14px;margin:0 0 22px}.role-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.role-option{display:flex;flex-direction:column;align-items:center;gap:8px;padding:13px 6px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#64748b;font-weight:750;font-size:12px}.role-option.active{border-color:var(--navy);background:var(--navy-soft);color:var(--navy);box-shadow:inset 0 0 0 1px var(--navy)}.role-description{display:flex;gap:8px;align-items:center;font-size:12px;line-height:1.5;color:#64748b;min-height:38px;margin:14px 0}.role-description svg{flex:none;color:var(--navy)}.auth-form{display:grid;gap:14px}.auth-form label{font-size:12px;font-weight:750;color:#334155}.auth-form .input{margin-top:7px}.auth-submit{margin-top:6px;min-height:46px}.auth-switch{text-align:center;font-size:13px;color:#64748b;margin:22px 0 0}.auth-switch a{color:var(--navy);font-weight:800}.auth-legal{font-size:10px;color:#94a3b8;text-align:center;line-height:1.6;margin:18px 0 0}.optional-label{font-weight:400;color:#94a3b8}.account-wrap{max-width:850px}.account-wrap .page-title{display:flex;justify-content:space-between;align-items:flex-end;gap:15px}.account-profile{display:flex;align-items:center;gap:18px}.account-profile h2{margin:0 0 5px}.account-profile p{margin:0 0 10px;color:var(--muted)}.account-avatar{width:58px;height:58px;border-radius:18px;background:var(--navy-soft);color:var(--navy);display:grid;place-items:center;font-size:24px;font-weight:850}.account-role{display:inline-block;background:var(--navy-soft);color:var(--navy);padding:5px 9px;border-radius:99px;font-size:11px;font-weight:800;text-transform:capitalize}.account-form{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:end}.account-form label{font-size:12px;font-weight:750}.account-form small{display:block;color:var(--muted);font-weight:400;margin-top:5px}.account-danger{border-color:#f1c9c9}.account-danger p{color:var(--muted);line-height:1.65}.btn-danger{background:#a82b36;color:white}.btn-danger:hover{background:#8f202b}.account-alert{border-radius:10px;padding:12px 15px;font-size:13px;margin:12px 0 18px}.account-alert.error{background:#fff0f0;border:1px solid #f0caca;color:#982b2b}.account-alert.success{background:#eef8f1;border:1px solid #cce8d3;color:#22633b}.admin-actions{display:flex;gap:8px}.admin-table-wrap{overflow-x:auto}.admin-table{width:100%;border-collapse:collapse;font-size:13px}.admin-table th,.admin-table td{text-align:left;padding:13px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.admin-table th{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}.muted-text{color:var(--muted);font-size:12px}.admin-hostel-list{display:grid}.admin-page .page-title{display:flex;justify-content:space-between;align-items:flex-end;gap:15px}
 .admin-hostel-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}.admin-hostel-form label{font-size:12px;font-weight:750}.admin-hostel-form-wide{grid-column:1/-1}
 @media(max-width:760px){.auth-page-navy{padding:20px 12px}.auth-shell{grid-template-columns:1fr;border-radius:18px}.auth-story{min-height:unset;padding:22px 24px}.auth-story-copy{padding:24px 0 6px}.auth-story h1{font-size:36px}.auth-card-navy{padding:28px 22px}.account-form{grid-template-columns:1fr}.account-wrap .page-title,.admin-page .page-title{align-items:flex-start;flex-direction:column}.admin-actions{flex-wrap:wrap}}
+/* Floor and bed inventory */
+.bed-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.bed-chip {
+  border: 1px solid #cfe2d5;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  padding: 4px 7px;
+  background: #eefbf2;
+  color: #176b38;
+}
+
+.bed-chip.booked {
+  background: #fff6df;
+  color: #8a5a00;
+}
+
+.bed-chip.occupied {
+  background: #ffe7e7;
+  color: #9a2525;
+}

@@ -166,7 +166,17 @@ export async function initDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT, hostel_id INTEGER NOT NULL,
       room_type TEXT NOT NULL, price_per_month REAL NOT NULL,
       total_beds INTEGER NOT NULL DEFAULT 1, available_beds INTEGER NOT NULL DEFAULT 1,
-      description TEXT, FOREIGN KEY(hostel_id) REFERENCES hostels(id) ON DELETE CASCADE
+      description TEXT, floor_number INTEGER NOT NULL DEFAULT 1, room_number TEXT,
+      FOREIGN KEY(hostel_id) REFERENCES hostels(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS beds (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, room_id INTEGER NOT NULL,
+      bed_label TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'available'
+        CHECK(status IN ('available','booked','occupied')),
+      booking_id INTEGER, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(room_id, bed_label),
+      FOREIGN KEY(room_id) REFERENCES rooms(id) ON DELETE CASCADE,
+      FOREIGN KEY(booking_id) REFERENCES bookings(id) ON DELETE SET NULL
     );
     CREATE TABLE IF NOT EXISTS menu_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT, hostel_id INTEGER NOT NULL,
@@ -220,4 +230,20 @@ export async function initDb() {
 
   await ensureSecurityTables(database);
   await migrateSchema(database);
+  if (!(await columnExists(database, "rooms", "floor_number"))) {
+    await database.exec("ALTER TABLE rooms ADD COLUMN floor_number INTEGER NOT NULL DEFAULT 1");
+  }
+  if (!(await columnExists(database, "rooms", "room_number"))) {
+    await database.exec("ALTER TABLE rooms ADD COLUMN room_number TEXT");
+  }
+  if (!(await columnExists(database, "bookings", "bed_id"))) {
+    await database.exec("ALTER TABLE bookings ADD COLUMN bed_id INTEGER REFERENCES beds(id)");
+  }
+  const rooms = await database.all("SELECT id, total_beds FROM rooms");
+  for (const room of rooms) {
+    const existing = await database.get("SELECT COUNT(*) AS count FROM beds WHERE room_id = ?", room.id);
+    for (let index = existing.count + 1; index <= room.total_beds; index += 1) {
+      await database.run("INSERT OR IGNORE INTO beds(room_id, bed_label) VALUES(?, ?)", room.id, `Bed ${index}`);
+    }
+  }
 }

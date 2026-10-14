@@ -260,7 +260,7 @@ export default function OwnerDashboardConnected() {
               <div className="empty" style={{ margin: "20px 0" }}>
                 <h2>No hostel added yet</h2>
                 <p>Add your hostel information to start accepting bookings on HostelHub.</p>
-                <Link to="/owner/hostel" className="btn btn-primary">Add My Hostel</Link>
+                <Link to="/owner/hostel" className="btn btn-primary">Request New Hostel</Link>
               </div>
             ) : (
               <div className="hostel-list">
@@ -289,7 +289,7 @@ export default function OwnerDashboardConnected() {
                           <strong>{hostel.available_beds ?? 0} beds</strong>
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
-                          <Link to="/owner/hostel" className="btn btn-dark">Manage Info & Photos</Link>
+                          <Link to="/owner/hostel" className="btn btn-dark">View / Edit</Link>
                           <Link to="/owner/rooms" className="btn btn-outline">Rooms</Link>
                         </div>
                       </div>
@@ -303,7 +303,7 @@ export default function OwnerDashboardConnected() {
               <div className="city-grid">
                 <Link to="/owner/hostel" className="city-card">
                   <div>
-                    <h3>Hostel Details & Photos</h3>
+                    <h3>Registered Hostels</h3>
                     <p>Update information and photo gallery</p>
                   </div>
                 </Link>

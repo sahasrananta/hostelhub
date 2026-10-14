@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post("/", authenticate, async (req, res) => {
   const db = await getDb();
-  const { hostel_id, room_id, check_in, check_out, simulated_payment = true } = req.body;
+  const { hostel_id, room_id, bed_id, check_in, check_out } = req.body;
 
   if (!hostel_id || !room_id) {
     return res.status(400).json({ message: "Hostel ID and Room ID are required" });
@@ -23,6 +23,16 @@ router.post("/", authenticate, async (req, res) => {
       await db.exec("ROLLBACK");
       return res.status(409).json({ message: "No vacancy available in this room" });
     }
+    if (bed_id) {
+      const bed = await db.get(
+        "SELECT id FROM beds WHERE id = ? AND room_id = ? AND status = 'available'",
+        bed_id, room_id
+      );
+      if (!bed) {
+        await db.exec("ROLLBACK");
+        return res.status(409).json({ message: "That bed is no longer available" });
+      }
+    }
 
     const bookingAmount = Number(room.price_per_month || 0);
     if (!Number.isFinite(bookingAmount) || bookingAmount <= 0) {
@@ -31,10 +41,11 @@ router.post("/", authenticate, async (req, res) => {
     }
 
     const b = await db.run(
-      `INSERT INTO bookings(hostel_id, room_id, user_id, check_in, check_out, amount, status)
-       VALUES(?, ?, ?, ?, ?, ?, 'pending')`,
+      `INSERT INTO bookings(hostel_id, room_id, bed_id, user_id, check_in, check_out, amount, status)
+       VALUES(?, ?, ?, ?, ?, ?, ?, 'pending')`,
       hostel_id,
       room_id,
+      bed_id || null,
       req.user.id,
       check_in || null,
       check_out || null,
@@ -55,10 +66,12 @@ router.post("/", authenticate, async (req, res) => {
     await db.exec("COMMIT");
 
     const created = await db.get(
-      `SELECT b.*, h.name AS hostel_name, h.city AS hostel_city, h.address AS hostel_address, r.room_type
-       FROM bookings b
+      `      SELECT b.*, h.name AS hostel_name, h.city AS hostel_city, h.address AS hostel_address, r.room_type,
+             beds.bed_label
+      FROM bookings b
        JOIN hostels h ON h.id = b.hostel_id
        JOIN rooms r ON r.id = b.room_id
+       LEFT JOIN beds ON beds.id = b.bed_id
        WHERE b.id = ?`,
       b.lastID
     );
@@ -97,11 +110,12 @@ router.get("/owner", authenticate, async (req, res) => {
     }
     const db = await getDb();
     const rows = await db.all(
-      `SELECT b.*, h.name AS hostel_name, r.room_type, r.price_per_month,
+      `SELECT b.*, h.name AS hostel_name, r.room_type, r.price_per_month, beds.bed_label,
               u.name AS student_name, u.email AS student_email, u.phone AS student_phone
        FROM bookings b
        JOIN hostels h ON h.id = b.hostel_id
        JOIN rooms r ON r.id = b.room_id
+       LEFT JOIN beds ON beds.id = b.bed_id
        JOIN users u ON u.id = b.user_id
        WHERE h.owner_id = ?
        ORDER BY b.id DESC`,
@@ -123,10 +137,11 @@ router.get("/residents", authenticate, async (req, res) => {
       `SELECT b.id AS booking_id, b.check_in, b.status, b.amount,
               u.id AS user_id, u.name AS resident_name, u.email AS resident_email, u.phone AS resident_phone,
               h.name AS hostel_name, h.id AS hostel_id,
-              r.room_type, r.price_per_month
+              r.room_type, r.price_per_month, beds.bed_label
        FROM bookings b
        JOIN hostels h ON h.id = b.hostel_id
        JOIN rooms r ON r.id = b.room_id
+       LEFT JOIN beds ON beds.id = b.bed_id
        JOIN users u ON u.id = b.user_id
        WHERE h.owner_id = ? AND b.status = 'confirmed'
        ORDER BY b.id DESC`,
@@ -173,6 +188,16 @@ router.patch("/:id/status", authenticate, async (req, res) => {
     await db.exec("BEGIN");
 
     if (prevStatus === "pending" && status === "confirmed") {
+      if (booking.bed_id) {
+        const bed = await db.run(
+          "UPDATE beds SET status = 'occupied', booking_id = ? WHERE id = ? AND status = 'available'",
+          booking.id, booking.bed_id
+        );
+        if (bed.changes !== 1) {
+          await db.exec("ROLLBACK");
+          return res.status(409).json({ message: "Selected bed is no longer available" });
+        }
+      }
       const allocate = await db.run(
         "UPDATE rooms SET available_beds = available_beds - 1 WHERE id = ? AND available_beds > 0",
         booking.room_id
@@ -184,6 +209,7 @@ router.patch("/:id/status", authenticate, async (req, res) => {
     } else if (prevStatus === "confirmed" && status === "cancelled") {
       // Free up bed
       await db.run("UPDATE rooms SET available_beds = MIN(total_beds, available_beds + 1) WHERE id = ?", booking.room_id);
+      if (booking.bed_id) await db.run("UPDATE beds SET status = 'available', booking_id = NULL WHERE id = ?", booking.bed_id);
     } else if (prevStatus === "cancelled" && status === "confirmed") {
       // Re-occupy bed
       const reclaim = await db.run("UPDATE rooms SET available_beds = available_beds - 1 WHERE id = ? AND available_beds > 0", booking.room_id);
