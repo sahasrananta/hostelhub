@@ -74,3 +74,102 @@ body{background:#f7f9fc;color:var(--ink)}.brand-mark,.btn-primary,.owner-banner{
   background: #ffe7e7;
   color: #9a2525;
 }
+
+.bed-grid.selectable .bed-chip {
+  cursor: pointer;
+}
+
+.bed-chip.selected {
+  outline: 3px solid #17365d;
+  outline-offset: 1px;
+}
+
+.bed-chip:disabled {
+  cursor: not-allowed;
+  opacity: .7;
+}
+
+.bed-chip.selected {
+  background: #102b4e;
+  border-color: #102b4e;
+  color: #fff;
+}
+
+.bed-grid.bookable {
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.bed-grid.bookable .bed-chip {
+  cursor: pointer;
+  min-width: 72px;
+}
+
+.bed-grid.bookable .bed-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.seat-picker {
+  border: 1px solid var(--line, #dfe7f0);
+  border-radius: 12px;
+  margin: 18px 0;
+  padding: 16px;
+}
+
+.seat-picker-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.seat-picker-head span {
+  color: var(--muted, #64748b);
+  font-size: 0.8rem;
+}
+
+.seat-key {
+  border-radius: 3px;
+  display: inline-block;
+  height: 10px;
+  margin: 0 4px 0 8px;
+  width: 10px;
+}
+
+.seat-key.available { background: #eefbf2; border: 1px solid #8bc99d; }
+.seat-key.booked { background: #fff6df; border: 1px solid #e2bd63; }
+.seat-key.occupied { background: #ffe7e7; border: 1px solid #df8b8b; }
+
+.registered-hostels {
+  margin-bottom: 20px;
+}
+
+.registered-hostel-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.registered-hostel {
+  background: #fff;
+  border: 1px solid var(--line, #dfe7f0);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  text-align: left;
+}
+
+.registered-hostel span {
+  color: var(--muted, #64748b);
+  font-size: 0.85rem;
+}
+
+.registered-hostel.active {
+  border-color: var(--navy, #102b4e);
+  box-shadow: 0 0 0 2px rgba(16, 43, 78, 0.12);
+}

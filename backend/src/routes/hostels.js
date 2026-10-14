@@ -47,9 +47,12 @@ async function full(db, id) {
   );
 
   h.rooms = await db.all(
-    "SELECT * FROM rooms WHERE hostel_id=? ORDER BY id",
+    `SELECT r.*, COALESCE((SELECT json_group_array(json_object('id', b.id, 'bed_label', b.bed_label, 'status', b.status))
+      FROM beds b WHERE b.room_id = r.id), '[]') AS beds
+     FROM rooms r WHERE r.hostel_id=? ORDER BY r.floor_number, r.room_number, r.id`,
     id
   );
+  h.rooms = h.rooms.map((room) => ({ ...room, beds: JSON.parse(room.beds || "[]") }));
 
   h.menu = await db.all(
     "SELECT * FROM menu_items WHERE hostel_id=? ORDER BY id",

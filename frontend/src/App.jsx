@@ -577,6 +577,9 @@ function HostelDetails({ toggleWishlist, wishlist, user, notify }) {
                     <div><BedDouble size={20}/><strong>{r.room_type}</strong><small>{r.total_beds} total beds</small></div>
                     <strong>₹{Number(r.price_per_month).toLocaleString()}<small>/month</small></strong>
                     <span className="available">{r.available_beds} beds left</span>
+                    {r.beds?.length > 0 && <div className="bed-grid">
+                      {r.beds.map((bed) => <span key={bed.id} className={`bed-chip ${bed.status}`}>{bed.bed_label}</span>)}
+                    </div>}
                     <Link className="btn btn-primary small" to={`/booking/${h.id}?roomId=${r.id}`}>Book</Link>
                   </div>
                 )) : <div className="empty">No rooms added yet.</div>}
@@ -653,6 +656,7 @@ function Booking({ user, notify }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedRoomId, setSelectedRoomId] = useState(initialRoomId || "");
+  const [selectedBedId, setSelectedBedId] = useState("");
   const [moveInDate, setMoveInDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
@@ -725,6 +729,7 @@ function Booking({ user, notify }) {
 
   const rooms = hostel.rooms || [];
   const selectedRoom = rooms.find((r) => String(r.id) === String(selectedRoomId)) || rooms[0];
+  const availableBeds = selectedRoom?.beds?.filter((bed) => bed.status === "available") || [];
 
   const handleContinue = () => {
     if (!selectedRoom) {
@@ -735,7 +740,11 @@ function Booking({ user, notify }) {
       notify("No vacancies available in this room type.");
       return;
     }
-    navigate(`/payment/${hostel.id}?roomId=${selectedRoom.id}&checkIn=${moveInDate}`);
+    if (selectedRoom.beds?.length > 0 && !selectedBedId) {
+      notify("Select an available bed to continue.");
+      return;
+    }
+    navigate(`/payment/${hostel.id}?roomId=${selectedRoom.id}&bedId=${selectedBedId}&checkIn=${moveInDate}`);
   };
 
   return (
@@ -765,6 +774,21 @@ function Booking({ user, notify }) {
                 <p className="muted">No rooms configured for this hostel yet.</p>
               )}
             </label>
+            {selectedRoom?.beds?.length > 0 && (
+              <div>
+                <label>Select an available bed</label>
+                <div className="bed-grid selectable">
+                  {selectedRoom.beds.map((bed) => (
+                    <button type="button" key={bed.id}
+                      className={`bed-chip ${bed.status} ${String(selectedBedId) === String(bed.id) ? "selected" : ""}`}
+                      disabled={bed.status !== "available"}
+                      onClick={() => setSelectedBedId(String(bed.id))}>
+                      {bed.bed_label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <label>
               Move-in date
               <input
@@ -830,6 +854,7 @@ function Payment({ user, notify }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roomId = searchParams.get("roomId");
+  const bedId = searchParams.get("bedId");
   const checkIn = searchParams.get("checkIn") || new Date().toISOString().split("T")[0];
 
   const [hostel, setHostel] = useState(null);
@@ -904,6 +929,7 @@ function Payment({ user, notify }) {
         body: JSON.stringify({
           hostel_id: hostel.id,
           room_id: selectedRoom.id,
+          bed_id: bedId || null,
           check_in: checkIn,
           simulated_payment: true
         })
@@ -1008,6 +1034,7 @@ function OwnerRooms({ notify }) {
   const API = API_BASE;
 
   const [hostelId, setHostelId] = useState("");
+  const [hostels, setHostels] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1054,10 +1081,15 @@ function OwnerRooms({ notify }) {
       }
 
       if (!Array.isArray(hostelData) || hostelData.length === 0) {
-        throw new Error("Please add your hostel details before managing rooms.");
+        setHostels([]);
+        setRooms([]);
+        setError("");
+        return;
       }
 
-      const hostel = hostelData[0];
+      setHostels(hostelData);
+      const requestedHostelId = new URLSearchParams(window.location.search).get("hostelId");
+      const hostel = hostelData.find((item) => String(item.id) === requestedHostelId) || hostelData[0];
       setHostelId(String(hostel.id));
 
       const roomResponse = await fetch(`${API}/rooms/owner/hostel/${hostel.id}`, {
@@ -1076,6 +1108,26 @@ function OwnerRooms({ notify }) {
       setError(err.message || "Failed to load rooms.");
     } finally {
       setLoading(false);
+    }
+
+    async function selectHostel(nextId) {
+      window.history.replaceState({}, "", `/owner/rooms?hostelId=${nextId}`);
+      setHostelId(String(nextId));
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch(`${API}/rooms/owner/hostel/${nextId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Could not load rooms.");
+        setRooms(Array.isArray(data) ? data : []);
+        setSelectedTypes((Array.isArray(data) ? data : []).map((room) => room.room_type));
+      } catch (err) {
+        setError(err.message || "Failed to load rooms.");
+      } finally {
+        setLoading(false);
+      }
     }
   }
 
@@ -1210,6 +1262,17 @@ function OwnerRooms({ notify }) {
           </div>
         </div>
 
+        {hostels.length > 0 && (
+          <section className="panel" style={{ marginBottom: 20 }}>
+            <label>
+              Manage registered hostel
+              <select className="input" value={hostelId} onChange={(event) => selectHostel(event.target.value)}>
+                {hostels.map((hostel) => <option key={hostel.id} value={hostel.id}>{hostel.name} · {hostel.status}</option>)}
+              </select>
+            </label>
+          </section>
+        )}
+
         {error && (
           <div className="empty">
             <p>{error}</p>
@@ -1217,7 +1280,15 @@ function OwnerRooms({ notify }) {
           </div>
         )}
 
-        {!error && (
+        {!error && hostels.length === 0 && (
+          <div className="empty">
+            <h2>No hostel listing found</h2>
+            <p>Create your first hostel listing before configuring floors, rooms, and beds.</p>
+            <Link to="/owner/hostel" className="btn btn-primary">Request New Hostel</Link>
+          </div>
+        )}
+
+        {!error && hostels.length > 0 && (
           <>
             <section className="panel">
               <h2>Choose room types offered by your hostel</h2>

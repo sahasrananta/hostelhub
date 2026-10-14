@@ -11,6 +11,23 @@ const ROOM_TYPES = [
   "5 Sharing"
 ];
 
+router.get("/owner/hostel/:hostelId", authenticate, authorize("owner"), async (req, res) => {
+  try {
+    const db = await getDb();
+    const hostel = await db.get("SELECT id FROM hostels WHERE id = ? AND owner_id = ?", req.params.hostelId, req.user.id);
+    if (!hostel) return res.status(404).json({ message: "Hostel not found" });
+    const rooms = await db.all(
+      `SELECT r.*, COALESCE((SELECT json_group_array(json_object('id', b.id, 'bed_label', b.bed_label, 'status', b.status))
+        FROM beds b WHERE b.room_id = r.id), '[]') AS beds
+       FROM rooms r WHERE r.hostel_id = ? ORDER BY r.floor_number, r.room_number, r.id`,
+      req.params.hostelId
+    );
+    res.json(rooms.map((room) => ({ ...room, beds: JSON.parse(room.beds || "[]") })));
+  } catch (error) {
+    res.status(500).json({ message: "Failed to load owner rooms", error: error.message });
+  }
+});
+
 router.get("/hostel/:hostelId", async (req, res) => {
   try {
     const db = await getDb();
@@ -28,23 +45,6 @@ router.get("/hostel/:hostelId", async (req, res) => {
     res.status(500).json({
       message: "Failed to load rooms",
       error: error.message
-    });
-
-    router.get("/owner/hostel/:hostelId", authenticate, authorize("owner"), async (req, res) => {
-      try {
-        const db = await getDb();
-        const hostel = await db.get("SELECT id FROM hostels WHERE id = ? AND owner_id = ?", req.params.hostelId, req.user.id);
-        if (!hostel) return res.status(404).json({ message: "Hostel not found" });
-        const rooms = await db.all(
-          `SELECT r.*, COALESCE((SELECT json_group_array(json_object('id', b.id, 'bed_label', b.bed_label, 'status', b.status))
-            FROM beds b WHERE b.room_id = r.id), '[]') AS beds
-           FROM rooms r WHERE r.hostel_id = ? ORDER BY r.floor_number, r.room_number, r.id`,
-          req.params.hostelId
-        );
-        res.json(rooms.map((room) => ({ ...room, beds: JSON.parse(room.beds || "[]") })));
-      } catch (error) {
-        res.status(500).json({ message: "Failed to load owner rooms", error: error.message });
-      }
     });
   }
 });
