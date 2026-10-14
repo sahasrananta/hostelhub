@@ -577,13 +577,13 @@ function HostelDetails({ toggleWishlist, wishlist, user, notify }) {
               <div className="room-table">
                 {rooms.length ? rooms.map(r=>(
                   <div className="room-row" key={r.id}>
-                    <div><BedDouble size={20}/><strong>{r.room_type}</strong><small>{r.total_beds} total beds</small></div>
-                    <strong>₹{Number(r.price_per_month).toLocaleString()}<small>/month</small></strong>
+                    <div className="room-row-heading"><BedDouble size={20}/><strong>{r.room_type}</strong><small>{r.total_beds} total beds</small></div>
+                    <strong className="room-row-price">₹{Number(r.price_per_month).toLocaleString()}<small>/month</small></strong>
                     <span className="available">{r.available_beds} beds left</span>
-                    {r.beds?.length > 0 && <div className="bed-grid">
+                    {r.beds?.length > 0 && <div className="bed-grid room-row-beds">
                       {r.beds.map((bed) => <span key={bed.id} className={`bed-chip ${bed.status}`}>{bed.bed_label}</span>)}
                     </div>}
-                    <Link className="btn btn-primary small" to={`/booking/${h.id}?roomId=${r.id}`}>Book</Link>
+                    <Link className="btn btn-primary small room-row-action" to={`/booking/${h.id}?roomId=${r.id}`}>Book</Link>
                   </div>
                 )) : <div className="empty">No rooms added yet.</div>}
               </div>
@@ -1483,7 +1483,9 @@ function OwnerRooms({ notify }) {
                             price_per_month: String(room.price_per_month),
                             total_beds: String(room.total_beds),
                             available_beds: String(room.available_beds),
-                            description: room.description || ""
+                            description: room.description || "",
+                            floor_number: String(room.floor_number || 1),
+                            room_number: room.room_number || ""
                           });
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }}

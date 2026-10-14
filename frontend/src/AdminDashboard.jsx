@@ -234,15 +234,6 @@ export default function AdminDashboard() {
             <strong>{overview?.users?.total ?? users.length}</strong>
             <small>Students: {overview?.users?.students ?? 0} · Owners: {overview?.users?.owners ?? 0}</small>
           </div>
-          <section className="panel admin-analytics" style={{ marginTop: 24 }}>
-            <div className="panel-head"><h2>Platform analytics</h2><span className="muted">Live database totals</span></div>
-            <div className="analytics-grid">
-              <div><strong>Bookings</strong><p>{overview?.bookingStats?.pending || 0} pending · {overview?.bookingStats?.confirmed || 0} confirmed · {overview?.bookingStats?.cancelled || 0} cancelled</p></div>
-              <div><strong>Payments</strong><p>₹{Number(overview?.paymentStats?.paid_amount || 0).toLocaleString()} recorded · ₹{Number(overview?.paymentStats?.pending_amount || 0).toLocaleString()} pending</p></div>
-              <div><strong>Complaints by status</strong><div className="mini-bars">{(overview?.complaintStats || []).map((item) => <div key={item.status}><span>{item.status}</span><b style={{ width: `${Math.max(8, Math.min(100, item.count * 12))}%` }}>{item.count}</b></div>)}</div></div>
-              <div><strong>Registrations, last 7 days</strong><div className="mini-bars">{(overview?.registrationTrend || []).map((item) => <div key={item.day}><span>{item.day.slice(5)}</span><b style={{ width: `${Math.max(8, Math.min(100, item.count * 12))}%` }}>{item.count}</b></div>)}</div></div>
-            </div>
-          </section>
           <div className="stat">
             <span>Hostel Listings</span>
             <strong>{overview?.hostelStats?.total ?? hostels.length}</strong>
@@ -259,6 +250,16 @@ export default function AdminDashboard() {
             <small>{overview?.logins?.unique_users ?? 0} unique users logged in</small>
           </div>
         </div>
+
+        <section className="panel admin-analytics">
+          <div className="panel-head"><h2>Platform analytics</h2><span className="muted">Live database totals</span></div>
+          <div className="analytics-grid">
+            <div><strong>Bookings</strong><p>{overview?.bookingStats?.pending || 0} pending · {overview?.bookingStats?.confirmed || 0} confirmed · {overview?.bookingStats?.cancelled || 0} cancelled</p></div>
+            <div><strong>Payments</strong><p>₹{Number(overview?.paymentStats?.paid_amount || 0).toLocaleString()} recorded · ₹{Number(overview?.paymentStats?.pending_amount || 0).toLocaleString()} pending</p></div>
+            <div><strong>Complaints by status</strong><div className="mini-bars">{(overview?.complaintStats || []).map((item) => <div key={item.status}><span>{item.status}</span><b style={{ width: `${Math.max(8, Math.min(100, item.count * 12))}%` }}>{item.count}</b></div>)}</div></div>
+            <div><strong>Registrations, last 7 days</strong><div className="mini-bars">{(overview?.registrationTrend || []).map((item) => <div key={item.day}><span>{item.day.slice(5)}</span><b style={{ width: `${Math.max(8, Math.min(100, item.count * 12))}%` }}>{item.count}</b></div>)}</div></div>
+          </div>
+        </section>
 
         {/* Pending Hostel Requests */}
         <section className="panel" style={{ marginTop: 24 }}>

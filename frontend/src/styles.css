@@ -89,6 +89,148 @@ body{background:#f7f9fc;color:var(--ink)}.brand-mark,.btn-primary,.owner-banner{
   opacity: .7;
 }
 
+/* Spacious dashboard and inventory layouts */
+.stats {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 18px;
+}
+
+.stat {
+  min-width: 0;
+  min-height: 132px;
+  padding: 22px;
+}
+
+.admin-analytics {
+  margin-top: 24px;
+  padding: 26px;
+}
+
+.admin-analytics .panel-head {
+  margin-bottom: 22px;
+}
+
+.analytics-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.analytics-grid > div {
+  min-height: 150px;
+  padding: 20px;
+  overflow-wrap: anywhere;
+}
+
+.analytics-grid p {
+  margin: 12px 0 0;
+}
+
+.room-row {
+  grid-template-columns: minmax(220px, 1.4fr) minmax(130px, .7fr) minmax(110px, .6fr) auto;
+  align-items: start;
+  gap: 16px 22px;
+  padding: 24px 20px;
+}
+
+.room-row-heading {
+  min-width: 0;
+}
+
+.room-row-price,
+.room-row .available {
+  padding-top: 4px;
+}
+
+.room-row-beds {
+  grid-column: 1 / -1;
+  padding-left: 32px;
+}
+
+.room-row .bed-grid {
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+}
+
+.room-row-action {
+  align-self: start;
+}
+
+.room-admin-row {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.5fr) minmax(150px, .8fr) minmax(120px, .6fr) auto auto;
+  align-items: start;
+  gap: 18px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.room-admin-row:last-child {
+  border-bottom: 0;
+}
+
+.room-admin-row > div:first-child {
+  min-width: 0;
+}
+
+.room-admin-row > div:first-child > svg {
+  float: left;
+  margin: 2px 9px 8px 0;
+}
+
+.room-admin-row > div:first-child strong,
+.room-admin-row > div:first-child small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.room-admin-row .bed-grid {
+  clear: both;
+  padding-top: 12px;
+}
+
+.bed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.bed-chip {
+  min-height: 48px;
+  white-space: normal;
+  line-height: 1.25;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .admin-analytics {
+    padding: 20px;
+  }
+
+  .room-row,
+  .room-admin-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .room-row-beds {
+    padding-left: 0;
+  }
+
+  .room-row-action {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .room-row,
+  .room-admin-row {
+    grid-template-columns: 1fr;
+  }
+
+  .room-row-beds {
+    grid-column: 1;
+  }
+}
+
 .bed-chip.selected {
   background: #102b4e;
   border-color: #102b4e;
