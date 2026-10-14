@@ -47,9 +47,9 @@ router.get("/owner", authenticate, async (req, res) => {
 router.post("/monthly-fee", authenticate, async (req, res) => {
   try {
     const db = await getDb();
-    const { hostel_id, amount } = req.body;
-    if (!hostel_id || !amount) {
-      return res.status(400).json({ message: "Hostel ID and amount are required" });
+    const { hostel_id } = req.body;
+    if (!hostel_id) {
+      return res.status(400).json({ message: "Hostel ID is required" });
     }
 
     const b = await db.get(
@@ -61,15 +61,14 @@ router.post("/monthly-fee", authenticate, async (req, res) => {
       return res.status(403).json({ message: "Only confirmed residents can pay monthly fees" });
     }
 
-    const numAmount = Number(amount);
-    if (!numAmount || numAmount <= 0) {
-      return res.status(400).json({ message: "Valid amount is required" });
-    }
+    const room = await db.get("SELECT price_per_month FROM rooms WHERE id = (SELECT room_id FROM bookings WHERE id = ?)", b.id);
+    const numAmount = Number(room?.price_per_month || 0);
+    if (!Number.isFinite(numAmount) || numAmount <= 0) return res.status(400).json({ message: "Resident room has no valid monthly price" });
 
-    const txn = `TXN-FEE-${Date.now()}`;
+    const txn = `SIMULATED-FEE-${Date.now()}`;
     const r = await db.run(
       `INSERT INTO payments(user_id, booking_id, hostel_id, amount, payment_type, status, transaction_id, paid_at)
-       VALUES(?, ?, ?, ?, 'monthly_fee', 'paid', ?, CURRENT_TIMESTAMP)`,
+       VALUES(?, ?, ?, ?, 'monthly_fee', 'pending', ?, NULL)`,
       req.user.id,
       b.id,
       hostel_id,

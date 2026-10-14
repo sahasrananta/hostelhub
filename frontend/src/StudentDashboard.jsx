@@ -173,18 +173,18 @@ export default function StudentDashboard({ notify }) {
   };
 
   const handlePayMonthlyFee = async (hostelId, amount) => {
-    if (!window.confirm(`Confirm payment of ₹${Number(amount).toLocaleString()} monthly hostel fee?`)) return;
+    if (!window.confirm(`Submit a simulated monthly rent payment request for ₹${Number(amount).toLocaleString()}? No card details will be collected.`)) return;
     try {
       setPayingFee(true);
       const res = await fetch(`${API}/payments/monthly-fee`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders(token) },
-        body: JSON.stringify({ hostel_id: hostelId, amount }),
+        body: JSON.stringify({ hostel_id: hostelId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Fee payment failed");
 
-      notify("Monthly fee paid successfully! Receipt generated.");
+      notify("Simulated monthly payment request recorded. No real payment was processed.");
       loadStudentData();
     } catch (err) {
       notify(err.message);
@@ -588,7 +588,7 @@ export default function StudentDashboard({ notify }) {
                         </td>
                         <td><strong>₹{Number(p.amount).toLocaleString()}</strong></td>
                         <td>{p.paid_at || p.created_at || "Recent"}</td>
-                        <td><span className="status green">{p.status || "Paid"}</span></td>
+                        <td><span className={`status ${p.status === "paid" ? "green" : ""}`}>{p.status === "pending" ? "Simulated / pending" : p.status || "Pending"}</span></td>
                       </tr>
                     ))}
                   </tbody>

@@ -16,7 +16,7 @@ router.get("/hostel/:hostelId", async (req, res) => {
     const db = await getDb();
 
     const rooms = await db.all(
-      "SELECT * FROM rooms WHERE hostel_id = ? ORDER BY id",
+      "SELECT r.* FROM rooms r JOIN hostels h ON h.id = r.hostel_id WHERE r.hostel_id = ? AND h.status = 'approved' ORDER BY r.id",
       req.params.hostelId
     );
 

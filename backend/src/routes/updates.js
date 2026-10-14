@@ -8,7 +8,7 @@ router.get("/hostel/:hostelId", async (req, res) => {
   try {
     const db = await getDb();
     const rows = await db.all(
-      "SELECT * FROM updates WHERE hostel_id = ? ORDER BY id DESC",
+      "SELECT u.* FROM updates u JOIN hostels h ON h.id = u.hostel_id WHERE u.hostel_id = ? AND h.status = 'approved' ORDER BY u.id DESC",
       req.params.hostelId
     );
     res.json(rows);

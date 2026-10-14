@@ -42,8 +42,14 @@ function parseJsonArray(value) {
   }
 }
 
-function RequireAuth({ user, children }) {
-  if (user) return children;
+function RequireAuth({ user, authReady, roles, children }) {
+  if (!authReady) {
+    return <main className="page"><div className="container narrow"><div className="empty">Restoring your session...</div></div></main>;
+  }
+  if (user && (!roles || roles.includes(user.role))) return children;
+  if (user) {
+    return <main className="page"><div className="container narrow"><div className="empty auth-required"><h2>Account role not permitted</h2><p>This area is restricted to the appropriate account type.</p><Link to="/" className="btn btn-outline">Return home</Link></div></div></main>;
+  }
   return (
     <main className="page">
       <div className="container narrow">
@@ -66,6 +72,7 @@ function App() {
   const [wishlist, setWishlist] = useState([]);
   const [toast, setToast] = useState("");
   const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     const syncUser = async () => {
@@ -73,13 +80,13 @@ function App() {
         const stored = localStorage.getItem("hostelhub_user");
         const u = stored ? JSON.parse(stored) : null;
         const token = localStorage.getItem("hostelhub_token");
-        if (token && u) {
+        if (token) {
           const accountResponse = await fetch(`${API_BASE}/auth/me`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (!accountResponse.ok) throw new Error("Session expired");
           const accountData = await accountResponse.json();
-          const currentUser = accountData.user || u;
+          const currentUser = accountData.user;
           localStorage.setItem("hostelhub_user", JSON.stringify(currentUser));
           setUser(currentUser);
           fetch(`${API_BASE}/wishlist`, {
@@ -101,6 +108,8 @@ function App() {
         localStorage.removeItem("hostelhub_user");
         setUser(null);
         setWishlist([]);
+      } finally {
+        setAuthReady(true);
       }
     };
 
@@ -152,19 +161,19 @@ function App() {
         <Route path="/hostels/:id" element={<HostelDetails toggleWishlist={toggleWishlist} wishlist={wishlist} user={user} notify={notify} />} />
         <Route path="/login" element={<OwnerAuth />} />
         <Route path="/signup" element={<OwnerAuth signup />} />
-        <Route path="/owner" element={<RequireAuth user={user}><OwnerDashboardConnected /></RequireAuth>} />
-        <Route path="/owner/hostel" element={<RequireAuth user={user}><OwnerHostelConnected notify={notify} /></RequireAuth>} />
-        <Route path="/owner/rooms" element={<RequireAuth user={user}><OwnerRooms notify={notify} /></RequireAuth>} />
-        <Route path="/owner/menu" element={<RequireAuth user={user}><OwnerMenuConnected notify={notify} /></RequireAuth>} />
-        <Route path="/owner/updates" element={<RequireAuth user={user}><OwnerUpdatesConnected notify={notify} /></RequireAuth>} />
-        <Route path="/admin" element={<RequireAuth user={user}><AdminDashboard /></RequireAuth>} />
-        <Route path="/resident" element={<RequireAuth user={user}><StudentDashboard notify={notify} /></RequireAuth>} />
-        <Route path="/complaints" element={<RequireAuth user={user}><StudentComplaints /></RequireAuth>} />
-        <Route path="/account-settings" element={<RequireAuth user={user}><AccountSettings /></RequireAuth>} />
+        <Route path="/owner" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerDashboardConnected /></RequireAuth>} />
+        <Route path="/owner/hostel" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerHostelConnected notify={notify} /></RequireAuth>} />
+        <Route path="/owner/rooms" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerRooms notify={notify} /></RequireAuth>} />
+        <Route path="/owner/menu" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerMenuConnected notify={notify} /></RequireAuth>} />
+        <Route path="/owner/updates" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerUpdatesConnected notify={notify} /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth user={user} authReady={authReady} roles={["admin"]}><AdminDashboard /></RequireAuth>} />
+        <Route path="/resident" element={<RequireAuth user={user} authReady={authReady} roles={["student", "resident"]}><StudentDashboard notify={notify} /></RequireAuth>} />
+        <Route path="/complaints" element={<RequireAuth user={user} authReady={authReady} roles={["student", "resident"]}><StudentComplaints /></RequireAuth>} />
+        <Route path="/account-settings" element={<RequireAuth user={user} authReady={authReady}><AccountSettings /></RequireAuth>} />
 
         <Route path="/booking/:id" element={<Booking user={user} notify={notify} />} />
         <Route path="/payment/:id" element={<Payment user={user} notify={notify} />} />
-        <Route path="/wishlist" element={<RequireAuth user={user}><Wishlist toggleWishlist={toggleWishlist} /></RequireAuth>} />
+        <Route path="/wishlist" element={<RequireAuth user={user} authReady={authReady}><Wishlist toggleWishlist={toggleWishlist} /></RequireAuth>} />
       </Routes>
       <Footer />
       {toast && <div className="toast">{toast}</div>}
@@ -340,10 +349,11 @@ function Browse({ toggleWishlist, wishlist }) {
   const [sort, setSort] = useState("recommended");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [compareIds, setCompareIds] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/hostels?city=${encodeURIComponent(initialCity)}`)
+    fetch(`${API_BASE}/hostels`)
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to load hostels");
@@ -368,6 +378,10 @@ function Browse({ toggleWishlist, wishlist }) {
   );
   if (sort === "price") list = [...list].sort((a,b) => Number(a.price || 0) - Number(b.price || 0));
   if (sort === "rating") list = [...list].sort((a,b) => Number(b.rating || 0) - Number(a.rating || 0));
+  const compareHostels = list.filter((h) => compareIds.includes(h.id));
+  const toggleCompare = (id) => setCompareIds((current) => current.includes(id)
+    ? current.filter((value) => value !== id)
+    : current.length >= 3 ? current : [...current, id]);
 
   return (
     <main className="page">
@@ -385,8 +399,14 @@ function Browse({ toggleWishlist, wishlist }) {
           <section>
             <div className="result-bar"><strong>{loading ? "Loading hostels..." : `${list.length} hostels found`}</strong><select className="sort" value={sort} onChange={e=>setSort(e.target.value)}><option value="recommended">Recommended</option><option value="rating">Top rated</option><option value="price">Price: low to high</option></select></div>
             {error && <div className="empty">{error}</div>}
-            {!loading && !error && <div className="hostel-list">{list.map(h=><HostelCard key={h.id} hostel={h} liked={wishlist.includes(h.id)} onLike={toggleWishlist} horizontal/>)}</div>}
+            {!loading && !error && <div className="hostel-list">{list.map(h=><HostelCard key={h.id} hostel={h} liked={wishlist.includes(h.id)} onLike={toggleWishlist} compareSelected={compareIds.includes(h.id)} onCompare={toggleCompare} horizontal/>)}</div>}
             {!loading && !error && list.length === 0 && <div className="empty">No hostels match these filters.</div>}
+            {compareHostels.length > 1 && <section className="panel compare-panel">
+              <div className="panel-head"><h2>Compare hostels</h2><button className="btn btn-outline small" onClick={() => setCompareIds([])}>Clear</button></div>
+              <div className="comparison-grid">
+                {compareHostels.map((h) => <div key={h.id}><strong>{h.name}</strong><p>{h.address || h.city}</p><p>From ₹{Number(h.price || 0).toLocaleString()} · {h.available_beds || 0} beds</p><p>{parseJsonArray(h.amenities).slice(0, 4).join(" · ") || "Amenities not listed"}</p></div>)}
+              </div>
+            </section>}
           </section>
         </div>
       </div>
@@ -394,7 +414,7 @@ function Browse({ toggleWishlist, wishlist }) {
   );
 }
 
-function HostelCard({ hostel:h, liked, onLike, horizontal=false }) {
+function HostelCard({ hostel:h, liked, onLike, compareSelected, onCompare, horizontal=false }) {
   const imageUrl = h.photos?.[0]?.url
     ? `${API_ORIGIN}${h.photos[0].url}`
     : h.image_url || null;
@@ -411,6 +431,7 @@ function HostelCard({ hostel:h, liked, onLike, horizontal=false }) {
         <div className="rating"><Star size={15} fill="currentColor"/>{rating} <span>({h.review_count || 0} reviews)</span></div>
         <h3>{h.name}</h3><p className="location"><MapPin size={15}/>{h.address || h.city}{h.city && h.address ? ` · ${h.city}` : ""}</p>
         <div className="amenities">{amenities.slice(0,3).map(a=><span key={a}>{a}</span>)}</div>
+        {onCompare && <button className="btn btn-outline small" onClick={() => onCompare(h.id)}>{compareSelected ? "Compared" : "Compare"}</button>}
         <div className="card-bottom"><div><small>Starting from</small><strong>{price ? `₹${price.toLocaleString()}` : "Price unavailable"}{price > 0 && <small>/month</small>}</strong><p>{Number(h.available_beds || 0)} beds available</p></div><Link to={`/hostels/${h.id}`} className="btn btn-dark">View hostel</Link></div>
       </div>
     </article>
@@ -754,13 +775,13 @@ function Booking({ user, notify }) {
                   <strong>₹{Number(selectedRoom.price_per_month).toLocaleString()}</strong>
                 </div>
                 <div>
-                  <span>Booking fee / deposit</span>
-                  <strong>₹299</strong>
+                  <span>Payment due now</span>
+                  <strong>₹0</strong>
                 </div>
                 <hr />
                 <div className="total">
                   <span>Due today</span>
-                  <strong>₹299</strong>
+                  <strong>₹0</strong>
                 </div>
               </>
             )}
@@ -850,22 +871,15 @@ function Payment({ user, notify }) {
         body: JSON.stringify({
           hostel_id: hostel.id,
           room_id: selectedRoom.id,
-          amount: selectedRoom.price_per_month,
-          check_in: checkIn
+          check_in: checkIn,
+          simulated_payment: true
         })
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Booking failed");
 
-      try {
-        const stored = JSON.parse(localStorage.getItem("hostelhub_user") || "{}");
-        stored.role = "resident";
-        localStorage.setItem("hostelhub_user", JSON.stringify(stored));
-        window.dispatchEvent(new Event("hostelhub-auth-change"));
-      } catch {}
-
-      notify("Payment verified! Booking confirmed successfully.");
+      notify("Booking request submitted using simulated payment. The owner will review it.");
       navigate("/resident");
     } catch (err) {
       notify(err.message || "Payment failed");
@@ -877,37 +891,23 @@ function Payment({ user, notify }) {
   return (
     <main className="page">
       <div className="container narrow">
-        <div className="eyebrow">SECURE PAYMENT</div>
-        <h1>Confirm booking</h1>
+        <div className="eyebrow">SIMULATED PAYMENT</div>
+        <h1>Submit booking request</h1>
         <div className="payment-card">
           <div className="payment-head">
             <div>
               <h2>{hostel.name}</h2>
               <p>{selectedRoom ? `${selectedRoom.room_type} · Move-in: ${checkIn}` : "Booking fee"}</p>
             </div>
-            <strong>₹299</strong>
+            <strong>₹0 due now</strong>
           </div>
           <form onSubmit={handlePay}>
-            <label>
-              Card number
-              <input className="input" placeholder="4242 •••• •••• 4242" required defaultValue="4242 1234 5678 9012" />
-            </label>
-            <div className="two">
-              <label>
-                Expiry
-                <input className="input" placeholder="MM/YY" required defaultValue="12/28" />
-              </label>
-              <label>
-                CVV
-                <input className="input" placeholder="123" required defaultValue="888" />
-              </label>
-            </div>
             <button className="btn btn-primary full" type="submit" disabled={paying}>
-              {paying ? "Processing payment..." : "Pay ₹299 Securely"} <CreditCard size={18} />
+              {paying ? "Submitting request..." : "Submit simulated payment"} <CreditCard size={18} />
             </button>
           </form>
           <p className="muted center" style={{ marginTop: 12 }}>
-            Instant room reservation and resident confirmation.
+            No card details are collected. This demo records a simulated payment request only.
           </p>
         </div>
       </div>
@@ -1025,7 +1025,9 @@ function OwnerRooms({ notify }) {
       const hostel = hostelData[0];
       setHostelId(String(hostel.id));
 
-      const roomResponse = await fetch(`${API}/rooms/hostel/${hostel.id}`);
+      const roomResponse = await fetch(`${API}/rooms/hostel/${hostel.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const roomData = await roomResponse.json();
 
       if (!roomResponse.ok) {
