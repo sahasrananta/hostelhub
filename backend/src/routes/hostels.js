@@ -8,6 +8,27 @@ import {hostelPhotos} from "../middleware/upload.js";
 
 const router=express.Router();
 
+const locationAliases = {
+  mlrit: ["mlrit", "maisammaguda", "dundigal", "gundlapochampally", "bowrampet", "bachupally", "medchal"],
+  medchal: ["medchal", "dundigal", "gandimaisamma", "domarapochampally", "maisammaguda", "gundlapochampally", "bowrampet", "bahadurpally", "kompally", "quthbullapur"]
+};
+
+function searchTerms(value) {
+  const term = String(value || "").trim().toLowerCase();
+  return locationAliases[term] || [term];
+}
+
+function locationClause(value, columns, params) {
+  const terms = searchTerms(value).filter(Boolean);
+  const matches = [];
+  for (const term of terms) {
+    const pattern = `%${term}%`;
+    matches.push(`(${columns.map((column) => `LOWER(COALESCE(${column}, '')) LIKE ?`).join(" OR ")})`);
+    params.push(...columns.map(() => pattern));
+  }
+  return matches.length ? `(${matches.join(" OR ")})` : "1 = 1";
+}
+
 async function full(db, id) {
   const h = await db.get("SELECT * FROM hostels WHERE id=?", id);
 
@@ -64,8 +85,9 @@ router.get("/",async(req,res)=>{
       COALESCE(SUM(ro.available_beds),0) available_beds,
       COALESCE(MIN(ro.price_per_month),0) price FROM hostels h
       LEFT JOIN reviews r ON r.hostel_id=h.id AND r.is_hidden=0 LEFT JOIN rooms ro ON ro.hostel_id=h.id`;
-    if(city){w.push("LOWER(h.city)=LOWER(?)");p.push(city);}
-    if(q){w.push("(LOWER(h.name) LIKE LOWER(?) OR LOWER(h.city) LIKE LOWER(?) OR LOWER(h.address) LIKE LOWER(?))");const x=`%${q}%`;p.push(x,x,x);}
+    const locationColumns = ["h.name", "h.city", "h.address", "h.description"];
+    if(city){w.push(locationClause(city, locationColumns, p));}
+    if(q){w.push(locationClause(q, locationColumns, p));}
     if(w.length)sql+=" WHERE "+w.join(" AND "); sql+=" GROUP BY h.id ORDER BY h.id DESC";
     const hs=await db.all(sql,...p);
     for (const h of hs) {

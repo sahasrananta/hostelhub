@@ -16,6 +16,10 @@ Production-ready Node.js + Express + SQLite backend for the HostelHub student ac
 - `PATCH /admin/hostels/:id/review` (Admin): Approve / reject hostel listings
 - `POST /admin/hostels` (Admin): Add and approve a manual hostel listing with room inventory
 
+The SQLite database path defaults to `backend/hostelhub.db` and can be overridden with
+the `DATABASE_PATH` environment variable. Production deployments should point this
+variable at persistent storage; otherwise a platform restart may reset local SQLite data.
+
 ### 2. Hostel Listings (`/api/hostels`)
 - `GET /`: Search and filter approved hostels by city, keyword, amenities, price
 - `GET /:id`: Full hostel details (rooms, photos, menu, announcements, verified reviews)

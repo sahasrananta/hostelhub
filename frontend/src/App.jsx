@@ -19,6 +19,18 @@ import AccountSettings from "./AccountSettings";
 import { API_BASE, API_ORIGIN } from "./api";
 import { hostels } from "./data/hostels";
 
+const LOCATION_ALIASES = {
+  mlrit: ["mlrit", "maisammaguda", "dundigal", "gundlapochampally", "bowrampet", "bachupally", "medchal"],
+  medchal: ["medchal", "dundigal", "gandimaisamma", "domarapochampally", "maisammaguda", "gundlapochampally", "bowrampet", "bahadurpally", "kompally", "quthbullapur"]
+};
+
+function matchesLocation(value, text) {
+  const term = String(value || "").trim().toLowerCase();
+  const haystack = String(text || "").toLowerCase();
+  const terms = LOCATION_ALIASES[term] || [term];
+  return !term || terms.some((item) => haystack.includes(item));
+}
+
 function parseJsonArray(value) {
   if (Array.isArray(value)) return value;
   if (typeof value !== "string" || !value.trim()) return [];
@@ -56,14 +68,20 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const syncUser = () => {
+    const syncUser = async () => {
       try {
         const stored = localStorage.getItem("hostelhub_user");
         const u = stored ? JSON.parse(stored) : null;
-        setUser(u);
-
         const token = localStorage.getItem("hostelhub_token");
         if (token && u) {
+          const accountResponse = await fetch(`${API_BASE}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (!accountResponse.ok) throw new Error("Session expired");
+          const accountData = await accountResponse.json();
+          const currentUser = accountData.user || u;
+          localStorage.setItem("hostelhub_user", JSON.stringify(currentUser));
+          setUser(currentUser);
           fetch(`${API_BASE}/wishlist`, {
             headers: { Authorization: `Bearer ${token}` }
           })
@@ -75,9 +93,11 @@ function App() {
             })
             .catch(() => {});
         } else {
+          setUser(null);
           setWishlist([]);
         }
       } catch {
+        localStorage.removeItem("hostelhub_token");
         localStorage.removeItem("hostelhub_user");
         setUser(null);
         setWishlist([]);
@@ -339,12 +359,12 @@ function Browse({ toggleWishlist, wishlist }) {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [initialCity]);
 
   let list = hostelList.filter((h) =>
     (gender === "All" || h.gender === gender || (gender === "Co-ed" && h.gender === "Co-living")) &&
     Number(h.price || 0) <= maxPrice &&
-    `${h.name || ""} ${h.city || ""} ${h.address || ""}`.toLowerCase().includes(query.toLowerCase())
+    matchesLocation(query, `${h.name || ""} ${h.city || ""} ${h.address || ""} ${h.description || ""}`)
   );
   if (sort === "price") list = [...list].sort((a,b) => Number(a.price || 0) - Number(b.price || 0));
   if (sort === "rating") list = [...list].sort((a,b) => Number(b.rating || 0) - Number(a.rating || 0));
