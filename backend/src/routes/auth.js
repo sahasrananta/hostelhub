@@ -13,7 +13,7 @@ const getJwtSecret = () => {
   return secret;
 };
 const createToken = (u) => jwt.sign({ id: u.id, email: u.email, role: u.role }, getJwtSecret(), { expiresIn: "7d" });
-const safeUser = (u) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role, is_active: u.is_active ?? 1, created_at: u.created_at });
+const safeUser = (u) => ({ id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role, is_active: u.is_active ?? 1, active_resident: Boolean(u.active_resident), created_at: u.created_at });
 
 router.post("/register", async (req, res) => {
   try {
@@ -24,7 +24,7 @@ router.post("/register", async (req, res) => {
     const db = await getDb(), normalizedEmail = email.trim().toLowerCase();
     if (await db.get("SELECT id FROM users WHERE email = ?", normalizedEmail)) return res.status(409).json({ message: "Email already registered" });
     const result = await db.run("INSERT INTO users(name,email,password_hash,phone,role) VALUES(?,?,?,?,?)", name.trim(), normalizedEmail, await bcrypt.hash(password, 10), phone?.trim() || null, role);
-    const user = safeUser(await db.get("SELECT id,name,email,phone,role,is_active,created_at FROM users WHERE id = ?", result.lastID));
+    const user = safeUser(await db.get("SELECT id,name,email,phone,role,is_active,created_at,0 AS active_resident FROM users WHERE id = ?", result.lastID));
     return res.status(201).json({ user, token: createToken(user) });
   } catch (e) { console.error("Registration failed:", e); return res.status(500).json({ message: "Registration failed" }); }
 });
@@ -36,7 +36,11 @@ router.post("/login", async (req, res) => {
     if (!u || !(await bcrypt.compare(req.body.password || "", u.password_hash))) return res.status(401).json({ message: "Invalid email or password" });
     if (u.is_active === 0) return res.status(403).json({ message: "This account is inactive. Contact an administrator." });
     if (req.body.role && req.body.role !== u.role && !(req.body.role === "student" && u.role === "resident")) return res.status(403).json({ message: `This account is registered as ${u.role}. Choose the matching account type.` });
-    const user = safeUser(u);
+    const activeResident = await db.get(
+      "SELECT 1 AS active_resident FROM bookings WHERE user_id = ? AND status = 'confirmed' LIMIT 1",
+      u.id
+    );
+    const user = safeUser({ ...u, active_resident: Boolean(activeResident) });
     await db.run("INSERT INTO login_events(user_id, email, role) VALUES(?,?,?)", u.id, u.email, u.role);
     return res.json({ user, token: createToken(user) });
   } catch (e) { console.error("Login failed:", e); return res.status(500).json({ message: "Login failed" }); }
@@ -45,7 +49,12 @@ router.post("/login", async (req, res) => {
 router.get("/me", authenticate, async (req, res) => {
   try {
     const db = await getDb();
-    const user = await db.get("SELECT id,name,email,phone,role,is_active,created_at FROM users WHERE id = ?", req.user.id);
+    const user = await db.get(
+      `SELECT id,name,email,phone,role,is_active,created_at,
+        EXISTS(SELECT 1 FROM bookings WHERE bookings.user_id = users.id AND bookings.status = 'confirmed') AS active_resident
+       FROM users WHERE id = ?`,
+      req.user.id
+    );
     if (!user || user.is_active === 0) return res.status(401).json({ message: "Account not found or inactive" });
     return res.json({ user });
   } catch { return res.status(500).json({ message: "Could not load account" }); }
@@ -110,12 +119,16 @@ router.get("/admin/overview", authenticate, authorize("admin"), async (_req, res
     const users = await db.get("SELECT COUNT(*) total, SUM(CASE WHEN role='student' OR role='resident' THEN 1 ELSE 0 END) students, SUM(CASE WHEN role='owner' THEN 1 ELSE 0 END) owners, SUM(CASE WHEN role='admin' THEN 1 ELSE 0 END) admins FROM users");
     const logins = await db.get("SELECT COUNT(*) total_logins, COUNT(DISTINCT user_id) unique_users FROM login_events");
     const hostelStats = await db.get("SELECT COUNT(*) total, SUM(CASE WHEN status='approved' THEN 1 ELSE 0 END) approved, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) pending, SUM(CASE WHEN status='rejected' THEN 1 ELSE 0 END) rejected FROM hostels");
+    const bookingStats = await db.get("SELECT COUNT(*) total, SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) pending, SUM(CASE WHEN status='confirmed' THEN 1 ELSE 0 END) confirmed, SUM(CASE WHEN status='cancelled' THEN 1 ELSE 0 END) cancelled FROM bookings");
+    const paymentStats = await db.get("SELECT COUNT(*) total, COALESCE(SUM(CASE WHEN status='paid' THEN amount ELSE 0 END), 0) paid_amount, COALESCE(SUM(CASE WHEN status='pending' THEN amount ELSE 0 END), 0) pending_amount FROM payments");
+    const complaintStats = await db.all("SELECT status, COUNT(*) AS count FROM complaints GROUP BY status ORDER BY status");
+    const registrationTrend = await db.all("SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS count FROM users WHERE created_at >= date('now', '-6 days') GROUP BY day ORDER BY day");
     const pendingHostels = await db.all("SELECT h.*, u.name AS owner_name, u.email AS owner_email FROM hostels h JOIN users u ON u.id=h.owner_id WHERE h.status='pending' ORDER BY h.created_at ASC");
     const allHostels = await db.all("SELECT h.*, u.name AS owner_name, u.email AS owner_email FROM hostels h JOIN users u ON u.id=h.owner_id ORDER BY h.id DESC");
     const complaints = await db.all("SELECT c.*, u.name AS student_name, u.email AS student_email, h.name AS hostel_name FROM complaints c JOIN users u ON u.id=c.user_id JOIN hostels h ON h.id=c.hostel_id ORDER BY c.created_at DESC");
     const hostelReports = await db.all("SELECT r.*, u.name AS student_name, u.email AS student_email, h.name AS hostel_name, h.city AS hostel_city FROM hostel_reports r JOIN users u ON u.id=r.user_id JOIN hostels h ON h.id=r.hostel_id ORDER BY CASE r.status WHEN 'open' THEN 0 WHEN 'reviewing' THEN 1 ELSE 2 END, r.created_at DESC");
     const auditLogs = await db.all("SELECT * FROM login_events ORDER BY id DESC LIMIT 25");
-    res.json({ users, logins, hostelStats, pendingHostels, allHostels, complaints, hostelReports, auditLogs });
+    res.json({ users, logins, hostelStats, bookingStats, paymentStats, complaintStats, registrationTrend, pendingHostels, allHostels, complaints, hostelReports, auditLogs });
   } catch (e) { console.error(e); res.status(500).json({message:'Could not load admin overview'}); }
 });
 

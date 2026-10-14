@@ -266,7 +266,7 @@ async function runTests() {
     // 7b. Verify bed inventory decremented
     const checkRoomAfterBook = await request(`/rooms/hostel/${newHostelId}`);
     const updatedRoom = checkRoomAfterBook.body?.find(r => r.id === roomId);
-    assert(updatedRoom?.available_beds === 3, "Room available beds decremented from 4 to 3");
+    assert(updatedRoom?.available_beds === 4, "Pending booking does not consume a bed before owner approval");
 
     // 7c. Student views their bookings
     const myBookings = await request("/bookings/mine", {
@@ -280,13 +280,24 @@ async function runTests() {
     });
     assert(myPayments.status === 200 && myPayments.body?.length > 0, "Student payment history shows initial transaction");
 
-    // 7e. Student pays monthly fee
+    // 7e. Owner approves the booking and allocates a bed
+    const approveBooking = await request(`/bookings/${bookingId}/status`, {
+      method: "PATCH",
+      headers: { Authorization: "Bearer " + ownerToken },
+      body: { status: "confirmed" }
+    });
+    assert(approveBooking.status === 200 && approveBooking.body?.booking?.status === "confirmed", "Owner approves booking request");
+    const checkRoomAfterApproval = await request(`/rooms/hostel/${newHostelId}`);
+    const approvedRoom = checkRoomAfterApproval.body?.find(r => r.id === roomId);
+    assert(approvedRoom?.available_beds === 3, "Approved booking decrements room availability");
+
+    // 7f. Student submits simulated monthly fee payment
     const payFee = await request("/payments/monthly-fee", {
       method: "POST",
       headers: { Authorization: `Bearer ${studentToken}` },
       body: { hostel_id: newHostelId, amount: 6500 }
     });
-    assert(payFee.status === 201 && payFee.body?.transaction_id, "Student pays monthly fee successfully");
+    assert(payFee.status === 201 && payFee.body?.transaction_id && payFee.body?.status === "pending", "Student records simulated monthly fee payment");
 
     console.log("\n=== 8. Owner Booking Decisions & Residents View ===");
     // 8a. Owner lists bookings

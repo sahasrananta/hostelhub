@@ -32,7 +32,7 @@ router.post("/", authenticate, async (req, res) => {
 
     const b = await db.run(
       `INSERT INTO bookings(hostel_id, room_id, user_id, check_in, check_out, amount, status)
-       VALUES(?, ?, ?, ?, ?, ?, 'confirmed')`,
+       VALUES(?, ?, ?, ?, ?, ?, 'pending')`,
       hostel_id,
       room_id,
       req.user.id,
@@ -40,15 +40,6 @@ router.post("/", authenticate, async (req, res) => {
       check_out || null,
       bookingAmount
     );
-
-    const decrement = await db.run(
-      "UPDATE rooms SET available_beds = available_beds - 1 WHERE id = ? AND available_beds > 0",
-      room_id
-    );
-    if (decrement.changes !== 1) {
-      await db.exec("ROLLBACK");
-      return res.status(409).json({ message: "No vacancy available in this room" });
-    }
 
     await db.run(
       `INSERT INTO payments(user_id, booking_id, hostel_id, amount, payment_type, status, transaction_id, paid_at)
@@ -181,7 +172,16 @@ router.patch("/:id/status", authenticate, async (req, res) => {
 
     await db.exec("BEGIN");
 
-    if (prevStatus === "confirmed" && status === "cancelled") {
+    if (prevStatus === "pending" && status === "confirmed") {
+      const allocate = await db.run(
+        "UPDATE rooms SET available_beds = available_beds - 1 WHERE id = ? AND available_beds > 0",
+        booking.room_id
+      );
+      if (allocate.changes !== 1) {
+        await db.exec("ROLLBACK");
+        return res.status(409).json({ message: "No vacancy is available to approve this booking" });
+      }
+    } else if (prevStatus === "confirmed" && status === "cancelled") {
       // Free up bed
       await db.run("UPDATE rooms SET available_beds = MIN(total_beds, available_beds + 1) WHERE id = ?", booking.room_id);
     } else if (prevStatus === "cancelled" && status === "confirmed") {

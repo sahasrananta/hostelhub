@@ -21,6 +21,10 @@ import { hostels } from "./data/hostels";
 
 const LOCATION_ALIASES = {
   mlrit: ["mlrit", "maisammaguda", "dundigal", "gundlapochampally", "bowrampet", "bachupally", "medchal"],
+  cmrit: ["cmrit", "kandlakoya", "medchal", "kompally", "gundlapochampally"],
+  "vnr vjiet": ["vnr vjiet", "bachupally", "nizampet", "pragathi nagar", "kukatpally"],
+  jntuh: ["jntuh", "kukatpally", "balkampet", "miyapur", "nizampet"],
+  "iiit hyderabad": ["iiit hyderabad", "gachibowli", "nallagandla", "lingampally", "serilingampally"],
   medchal: ["medchal", "dundigal", "gandimaisamma", "domarapochampally", "maisammaguda", "gundlapochampally", "bowrampet", "bahadurpally", "kompally", "quthbullapur"]
 };
 
@@ -183,6 +187,10 @@ function App() {
 
 function Header({ user, wishlistCount }) {
   const [open, setOpen] = useState(false);
+  const isOwner = user?.role === "owner";
+  const isAdmin = user?.role === "admin";
+  const isResident = Boolean(user?.active_resident);
+  const isStudent = user?.role === "student" || user?.role === "resident";
   return (
     <header className="header">
       <div className="container nav">
@@ -191,17 +199,25 @@ function Header({ user, wishlistCount }) {
         <nav className={open ? "nav-links open" : "nav-links"}>
           <Link to="/hostels">Browse Hostels</Link>
           <a href="/#how">How it works</a>
-          {(user?.role === "student" || user?.role === "resident") && (
+          {isStudent && !isResident && (
             <>
-              <Link to="/resident">Resident Portal</Link>
-              <Link to="/complaints">Complaints</Link>
+              <Link to="/resident">My Bookings</Link>
+              <Link to="/wishlist" className="wishlist-link"><Heart size={17}/> Wishlist {wishlistCount > 0 && <span>{wishlistCount}</span>}</Link>
             </>
           )}
-          {user?.role === "owner" && <Link to="/owner">Owner Portal</Link>}
-          {user?.role === "admin" && <Link to="/admin">Admin Portal</Link>}
-          <Link to="/wishlist" className="wishlist-link">
-            <Heart size={17}/> Wishlist {wishlistCount > 0 && <span>{wishlistCount}</span>}
-          </Link>
+          {isResident && <>
+            <Link to="/resident">Resident Portal</Link>
+            <Link to="/resident">Current Stay</Link>
+            <Link to="/complaints">Complaints</Link>
+          </>}
+          {isOwner && <>
+            <Link to="/owner">Owner Dashboard</Link>
+            <Link to="/owner/hostel">My Hostels</Link>
+            <Link to="/owner/rooms">Manage Rooms</Link>
+            <Link to="/owner/menu">Food Menu</Link>
+            <Link to="/owner/updates">Updates</Link>
+          </>}
+          {isAdmin && <Link to="/admin">Admin Dashboard</Link>}
           {user ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <Link to="/account-settings" className="btn btn-outline small" title="Account settings">
@@ -345,7 +361,12 @@ function Browse({ toggleWishlist, wishlist }) {
   const [hostelList, setHostelList] = useState([]);
   const [query, setQuery] = useState(initialCity);
   const [gender, setGender] = useState(initialGender);
+  const [roomType, setRoomType] = useState("All");
+  const [amenity, setAmenity] = useState("");
+  const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(15000);
+  const [minBeds, setMinBeds] = useState(0);
+  const [minRating, setMinRating] = useState(0);
   const [sort, setSort] = useState("recommended");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -371,13 +392,20 @@ function Browse({ toggleWishlist, wishlist }) {
     return () => { cancelled = true; };
   }, [initialCity]);
 
+  const suggestions = ["MLRIT", "CMRIT", "VNR VJIET", "JNTUH", "IIIT Hyderabad", "Dundigal", "Medchal", "Maisammaguda", "Bachupally", "Kompally", "Gachibowli", "Madhapur", "Kondapur", "Kukatpally"];
   let list = hostelList.filter((h) =>
     (gender === "All" || h.gender === gender || (gender === "Co-ed" && h.gender === "Co-living")) &&
+    Number(h.price || 0) >= minPrice &&
     Number(h.price || 0) <= maxPrice &&
+    Number(h.available_beds || 0) >= minBeds &&
+    Number(h.rating || 0) >= minRating &&
+    (roomType === "All" || String(h.room_types || "").split(",").includes(roomType)) &&
+    (!amenity || parseJsonArray(h.amenities).some((item) => item.toLowerCase().includes(amenity.toLowerCase()))) &&
     matchesLocation(query, `${h.name || ""} ${h.city || ""} ${h.address || ""} ${h.description || ""}`)
   );
   if (sort === "price") list = [...list].sort((a,b) => Number(a.price || 0) - Number(b.price || 0));
   if (sort === "rating") list = [...list].sort((a,b) => Number(b.rating || 0) - Number(a.rating || 0));
+  if (sort === "availability") list = [...list].sort((a,b) => Number(b.available_beds || 0) - Number(a.available_beds || 0));
   const compareHostels = list.filter((h) => compareIds.includes(h.id));
   const toggleCompare = (id) => setCompareIds((current) => current.includes(id)
     ? current.filter((value) => value !== id)
@@ -389,15 +417,20 @@ function Browse({ toggleWishlist, wishlist }) {
         <div className="page-title"><div><div className="eyebrow">EXPLORE</div><h1>Find your next hostel</h1><p>Compare verified student accommodations and choose what fits you.</p></div></div>
         <div className="browse-layout">
           <aside className="filters">
-            <div className="filter-title">Filters <button onClick={()=>{setGender("All");setMaxPrice(15000);setQuery("")}}>Reset</button></div>
-            <label>Search<input className="input" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Hostel, area, city"/></label>
+            <div className="filter-title">Filters <button onClick={()=>{setGender("All");setRoomType("All");setAmenity("");setMinPrice(0);setMaxPrice(15000);setMinBeds(0);setMinRating(0);setQuery("")}}>Reset</button></div>
+            <label>Search<div style={{ display: "flex", gap: 8 }}><input className="input" list="location-suggestions" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Hostel, college, area, city"/>{query && <button type="button" className="btn btn-outline small" onClick={() => setQuery("")}>Clear</button>}</div><datalist id="location-suggestions">{suggestions.map((item) => <option key={item} value={item} />)}</datalist></label>
             <label>Hostel type
               <select className="input" value={gender} onChange={e=>setGender(e.target.value)}><option>All</option><option>Boys</option><option>Girls</option><option>Co-ed</option></select>
             </label>
+            <label>Room type<select className="input" value={roomType} onChange={e=>setRoomType(e.target.value)}><option>All</option><option>2 Sharing</option><option>3 Sharing</option><option>4 Sharing</option><option>5 Sharing</option></select></label>
+            <label>Amenity<input className="input" value={amenity} onChange={e=>setAmenity(e.target.value)} placeholder="WiFi, food, laundry"/></label>
+            <label>Minimum monthly rent <strong>₹{minPrice.toLocaleString()}</strong><input type="range" min="0" max="25000" step="500" value={minPrice} onChange={e=>setMinPrice(Number(e.target.value))}/></label>
             <label>Maximum monthly rent <strong>₹{maxPrice.toLocaleString()}</strong><input type="range" min="3000" max="25000" step="500" value={maxPrice} onChange={e=>setMaxPrice(Number(e.target.value))}/></label>
+            <label>Minimum available beds<input className="input" type="number" min="0" value={minBeds} onChange={e=>setMinBeds(Number(e.target.value))}/></label>
+            <label>Minimum rating<select className="input" value={minRating} onChange={e=>setMinRating(Number(e.target.value))}><option value="0">Any rating</option><option value="3">3+</option><option value="4">4+</option><option value="4.5">4.5+</option></select></label>
           </aside>
           <section>
-            <div className="result-bar"><strong>{loading ? "Loading hostels..." : `${list.length} hostels found`}</strong><select className="sort" value={sort} onChange={e=>setSort(e.target.value)}><option value="recommended">Recommended</option><option value="rating">Top rated</option><option value="price">Price: low to high</option></select></div>
+            <div className="result-bar"><strong>{loading ? "Loading hostels..." : `${list.length} hostels found`}</strong><select className="sort" value={sort} onChange={e=>setSort(e.target.value)}><option value="recommended">Recommended</option><option value="rating">Top rated</option><option value="price">Price: low to high</option><option value="availability">Most vacancies</option></select></div>
             {error && <div className="empty">{error}</div>}
             {!loading && !error && <div className="hostel-list">{list.map(h=><HostelCard key={h.id} hostel={h} liked={wishlist.includes(h.id)} onLike={toggleWishlist} compareSelected={compareIds.includes(h.id)} onCompare={toggleCompare} horizontal/>)}</div>}
             {!loading && !error && list.length === 0 && <div className="empty">No hostels match these filters.</div>}

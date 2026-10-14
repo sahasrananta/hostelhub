@@ -10,6 +10,10 @@ const router=express.Router();
 
 const locationAliases = {
   mlrit: ["mlrit", "maisammaguda", "dundigal", "gundlapochampally", "bowrampet", "bachupally", "medchal"],
+  cmrit: ["cmrit", "kandlakoya", "medchal", "kompally", "gundlapochampally"],
+  "vnr vjiet": ["vnr vjiet", "bachupally", "nizampet", "pragathi nagar", "kukatpally"],
+  jntuh: ["jntuh", "kukatpally", "balkampet", "miyapur", "nizampet"],
+  "iiit hyderabad": ["iiit hyderabad", "gachibowli", "nallagandla", "lingampally", "serilingampally"],
   medchal: ["medchal", "dundigal", "gandimaisamma", "domarapochampally", "maisammaguda", "gundlapochampally", "bowrampet", "bahadurpally", "kompally", "quthbullapur"]
 };
 
@@ -80,15 +84,22 @@ async function full(db, id) {
 
 router.get("/",async(req,res)=>{
   try{
-    const db=await getDb(); const {q,city}=req.query; const p=[]; const w=["h.status = 'approved'"];
+    const db=await getDb(); const {q,city,gender,room_type,amenity,min_price,max_price,min_beds,min_rating}=req.query; const p=[]; const w=["h.status = 'approved'"]; const having=[];
     let sql=`SELECT h.*,COALESCE(AVG(r.rating),0) rating,COUNT(DISTINCT r.id) review_count,
       COALESCE(SUM(ro.available_beds),0) available_beds,
-      COALESCE(MIN(ro.price_per_month),0) price FROM hostels h
+      COALESCE(MIN(ro.price_per_month),0) price,GROUP_CONCAT(DISTINCT ro.room_type) room_types FROM hostels h
       LEFT JOIN reviews r ON r.hostel_id=h.id AND r.is_hidden=0 LEFT JOIN rooms ro ON ro.hostel_id=h.id`;
     const locationColumns = ["h.name", "h.city", "h.address", "h.description"];
     if(city){w.push(locationClause(city, locationColumns, p));}
     if(q){w.push(locationClause(q, locationColumns, p));}
-    if(w.length)sql+=" WHERE "+w.join(" AND "); sql+=" GROUP BY h.id ORDER BY h.id DESC";
+    if(gender && gender !== "All") w.push("(h.gender = ? OR (? = 'Co-ed' AND h.gender = 'Co-living'))"), p.push(gender, gender);
+    if(room_type) w.push("EXISTS (SELECT 1 FROM rooms rf WHERE rf.hostel_id = h.id AND rf.room_type = ?)"), p.push(room_type);
+    if(amenity) w.push("LOWER(COALESCE(h.amenities, '')) LIKE LOWER(?)"), p.push(`%${amenity}%`);
+    if(Number.isFinite(Number(min_price))) having.push("COALESCE(MIN(ro.price_per_month), 0) >= ?"), p.push(Number(min_price));
+    if(Number.isFinite(Number(max_price))) having.push("COALESCE(MIN(ro.price_per_month), 0) <= ?"), p.push(Number(max_price));
+    if(Number.isFinite(Number(min_beds))) having.push("COALESCE(SUM(ro.available_beds), 0) >= ?"), p.push(Number(min_beds));
+    if(Number.isFinite(Number(min_rating))) having.push("COALESCE(AVG(r.rating), 0) >= ?"), p.push(Number(min_rating));
+    if(w.length)sql+=" WHERE "+w.join(" AND "); sql+=" GROUP BY h.id"; if (having.length) sql += " HAVING " + having.join(" AND "); sql += " ORDER BY h.id DESC";
     const hs=await db.all(sql,...p);
     for (const h of hs) {
       try {

@@ -172,7 +172,8 @@ export default function OwnerDashboardConnected() {
     );
   }
 
-  const totalBeds = hostels.reduce((sum, h) => sum + (h.available_beds ?? 0), 0);
+  const totalBeds = hostels.reduce((sum, h) => sum + (h.rooms || []).reduce((roomsTotal, room) => roomsTotal + Number(room.total_beds || 0), 0), 0);
+  const availableBeds = hostels.reduce((sum, h) => sum + (h.rooms || []).reduce((roomsTotal, room) => roomsTotal + Number(room.available_beds || 0), 0), 0);
   const pendingBookings = bookings.filter((b) => b.status === "pending");
   const openComplaints = complaints.filter((c) => c.status === "open" || c.status === "reviewing");
 
@@ -203,8 +204,8 @@ export default function OwnerDashboardConnected() {
           </div>
           <div className="stat">
             <span>Available Beds</span>
-            <strong>{totalBeds}</strong>
-            <small>Across all rooms</small>
+            <strong>{availableBeds}</strong>
+            <small>{totalBeds} total capacity</small>
           </div>
           <div className="stat">
             <span>Confirmed Residents</span>
