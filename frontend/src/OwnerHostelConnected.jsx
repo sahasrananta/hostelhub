@@ -51,6 +51,7 @@ export default function OwnerHostelConnected({ notify }) {
   const [uploading, setUploading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [predefined, setPredefined] = useState([]);
 
   const token = localStorage.getItem("hostelhub_token");
 
@@ -99,6 +100,9 @@ export default function OwnerHostelConnected({ notify }) {
           Array.isArray(h.rules) ? h.rules.join("\n") : ""
         );
       }
+      const publicResponse = await fetch(`${API}/hostels`);
+      const publicData = await publicResponse.json();
+      setPredefined(Array.isArray(publicData) ? publicData.slice(0, 8) : []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -268,7 +272,7 @@ export default function OwnerHostelConnected({ notify }) {
           <nav>
             <Link to="/owner"><Building2 />Overview</Link>
             <Link to="/owner/hostel"><Building2 />My Hostel</Link>
-            <Link to="/owner/rooms"><BedDouble />Rooms & Vacancies</Link>
+            <Link to="/owner/vacancies"><BedDouble />Manage Vacancies</Link>
             <Link to="/owner/menu"><Utensils />Food Menu</Link>
             <Link to="/owner/updates"><Bell />Updates</Link>
           </nav>
@@ -284,6 +288,36 @@ export default function OwnerHostelConnected({ notify }) {
           </div>
 
           <div className="panel form-panel">
+            {!hostelId && predefined.length > 0 && (
+              <div className="panel" style={{ marginBottom: 20, background: "#f8fafc" }}>
+                <div className="panel-head">
+                  <div>
+                    <h2>Predefined hostel listings</h2>
+                    <p className="muted">Use an existing listing as a starting point, or submit a completely new hostel for admin approval.</p>
+                  </div>
+                  <span className="badge dark">Request New Hostel</span>
+                </div>
+                <div className="hostel-grid">
+                  {predefined.map((listing) => (
+                    <button type="button" className="city-card" key={listing.id} onClick={() => {
+                      setHostel((current) => ({
+                        ...current,
+                        name: listing.name || "",
+                        city: listing.city || "",
+                        address: listing.address || "",
+                        description: listing.description || "",
+                        gender: listing.gender || "Co-ed",
+                        amenities: Array.isArray(listing.amenities) ? listing.amenities : []
+                      }));
+                      notify("Listing details copied. Review and submit the request.");
+                    }}>
+                      <strong>{listing.name}</strong>
+                      <span>{listing.city} · {listing.available_beds ?? 0} beds</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="panel-head">
               <div>
                 <h2>{hostelId ? "Hostel information" : "Add your hostel"}</h2>

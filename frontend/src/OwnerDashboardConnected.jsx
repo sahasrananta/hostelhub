@@ -290,7 +290,7 @@ export default function OwnerDashboardConnected() {
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
                           <Link to="/owner/hostel" className="btn btn-dark">View / Edit</Link>
-                          <Link to="/owner/rooms" className="btn btn-outline">Rooms</Link>
+                          <Link to="/owner/vacancies" className="btn btn-outline">Vacancies</Link>
                         </div>
                       </div>
                     </div>
@@ -307,10 +307,10 @@ export default function OwnerDashboardConnected() {
                     <p>Update information and photo gallery</p>
                   </div>
                 </Link>
-                <Link to="/owner/rooms" className="city-card">
+                <Link to="/owner/vacancies" className="city-card">
                   <div>
-                    <h3>Rooms & Pricing</h3>
-                    <p>Manage sharing types and available vacancies</p>
+                    <h3>Manage Vacancies</h3>
+                    <p>Mark each floor, room and bed as booked or available</p>
                   </div>
                 </Link>
                 <Link to="/owner/menu" className="city-card">

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   MapPin,
   CreditCard,
@@ -24,6 +24,7 @@ const API = API_BASE;
 
 export default function StudentDashboard({ notify }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [user, setUser] = useState(null);
@@ -38,7 +39,12 @@ export default function StudentDashboard({ notify }) {
   const [reportHostels, setReportHostels] = useState([]);
   const [hostelReports, setHostelReports] = useState([]);
 
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") === "updates" ? "overview" : (searchParams.get("tab") || "overview"));
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    if (requestedTab) setActiveTab(requestedTab === "updates" ? "overview" : requestedTab);
+  }, [searchParams]);
 
   // Complaint submission form
   const [compHostelId, setCompHostelId] = useState("");
@@ -276,6 +282,7 @@ export default function StudentDashboard({ notify }) {
   }
 
   const activeStay = bookings.find((b) => b.status === "confirmed");
+  const isResident = Boolean(user?.active_resident);
   const todayDayName = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(new Date());
   const todayMeals = hostelMenu.filter((m) => m.day.toLowerCase() === todayDayName.toLowerCase());
 
@@ -369,24 +376,24 @@ export default function StudentDashboard({ notify }) {
           >
             Stay & Updates
           </button>
-          <button
+          {!isResident && <button
             className={activeTab === "bookings" ? "active" : ""}
             onClick={() => setActiveTab("bookings")}
           >
             Booking History ({bookings.length})
-          </button>
-          <button
+          </button>}
+          {!isResident && <button
             className={activeTab === "payments" ? "active" : ""}
             onClick={() => setActiveTab("payments")}
           >
             Payments ({payments.length})
-          </button>
-          <button
+          </button>}
+          {!isResident && <button
             className={activeTab === "wishlist" ? "active" : ""}
             onClick={() => setActiveTab("wishlist")}
           >
             Wishlist ({wishlist.length})
-          </button>
+          </button>}
           <button
             className={activeTab === "complaints" ? "active" : ""}
             onClick={() => setActiveTab("complaints")}

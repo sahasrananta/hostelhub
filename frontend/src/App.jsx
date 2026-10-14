@@ -168,6 +168,7 @@ function App() {
         <Route path="/owner" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerDashboardConnected /></RequireAuth>} />
         <Route path="/owner/hostel" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerHostelConnected notify={notify} /></RequireAuth>} />
         <Route path="/owner/rooms" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerRooms notify={notify} /></RequireAuth>} />
+        <Route path="/owner/vacancies" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerRooms notify={notify} /></RequireAuth>} />
         <Route path="/owner/menu" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerMenuConnected notify={notify} /></RequireAuth>} />
         <Route path="/owner/updates" element={<RequireAuth user={user} authReady={authReady} roles={["owner"]}><OwnerUpdatesConnected notify={notify} /></RequireAuth>} />
         <Route path="/admin" element={<RequireAuth user={user} authReady={authReady} roles={["admin"]}><AdminDashboard /></RequireAuth>} />
@@ -197,8 +198,8 @@ function Header({ user, wishlistCount }) {
         <Link to="/" className="brand"><span className="brand-mark">H</span>HostelHub</Link>
         <button className="mobile-menu" onClick={() => setOpen(!open)}>{open ? <X/> : <Menu/>}</button>
         <nav className={open ? "nav-links open" : "nav-links"}>
-          {!isOwner && !isAdmin && <Link to="/hostels">Browse Hostels</Link>}
-          {!isOwner && !isAdmin && <a href="/#how">How it works</a>}
+          {!isOwner && !isAdmin && !isResident && <Link to="/hostels">Browse Hostels</Link>}
+          {!isOwner && !isAdmin && !isResident && <a href="/#how">How it works</a>}
           {isStudent && !isResident && (
             <>
               <Link to="/resident">My Bookings</Link>
@@ -206,14 +207,16 @@ function Header({ user, wishlistCount }) {
             </>
           )}
           {isResident && <>
-            <Link to="/resident">Resident Portal</Link>
-            <Link to="/resident">Current Stay</Link>
-            <Link to="/complaints">Complaints</Link>
+            <Link to="/resident?tab=overview">Resident Dashboard</Link>
+            <Link to="/resident?tab=updates">Announcements</Link>
+            <Link to="/resident?tab=reviews">Reviews</Link>
+            <Link to="/resident?tab=complaints">Complaints</Link>
+            <Link to="/resident?tab=reports">Suspicious Hostels</Link>
           </>}
           {isOwner && <>
             <Link to="/owner">Owner Dashboard</Link>
             <Link to="/owner/hostel">My Hostels</Link>
-            <Link to="/owner/rooms">Manage Rooms</Link>
+            <Link to="/owner/vacancies">Manage Vacancies</Link>
             <Link to="/owner/menu">Food Menu</Link>
             <Link to="/owner/updates">Updates</Link>
           </>}
@@ -1110,24 +1113,25 @@ function OwnerRooms({ notify }) {
       setLoading(false);
     }
 
-    async function selectHostel(nextId) {
-      window.history.replaceState({}, "", `/owner/rooms?hostelId=${nextId}`);
-      setHostelId(String(nextId));
-      setLoading(true);
-      setError("");
-      try {
-        const response = await fetch(`${API}/rooms/owner/hostel/${nextId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "Could not load rooms.");
-        setRooms(Array.isArray(data) ? data : []);
-        setSelectedTypes((Array.isArray(data) ? data : []).map((room) => room.room_type));
-      } catch (err) {
-        setError(err.message || "Failed to load rooms.");
-      } finally {
-        setLoading(false);
-      }
+  }
+
+  async function selectHostel(nextId) {
+    window.history.replaceState({}, "", `/owner/rooms?hostelId=${nextId}`);
+    setHostelId(String(nextId));
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`${API}/rooms/owner/hostel/${nextId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not load rooms.");
+      setRooms(Array.isArray(data) ? data : []);
+      setSelectedTypes((Array.isArray(data) ? data : []).map((room) => room.room_type));
+    } catch (err) {
+      setError(err.message || "Failed to load rooms.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -1174,6 +1178,25 @@ function OwnerRooms({ notify }) {
     if (!hostelId) {
       notify("Please add your hostel first.");
       return;
+    }
+
+    async function updateBedStatus(bed) {
+      const status = bed.status === "available" ? "booked" : "available";
+      try {
+        const response = await fetch(`${API}/rooms/beds/${bed.id}/status`, {
+          method: "PATCH",
+          headers: { ...authHeaders(token), "Content-Type": "application/json" },
+          body: JSON.stringify({ status })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Could not update bed status");
+        setRooms((current) => current.map((room) => room.id === bed.room_id
+          ? { ...room, available_beds: Number(room.available_beds) + (status === "available" ? 1 : -1), beds: room.beds.map((item) => item.id === bed.id ? data : item) }
+          : room));
+        notify(`${bed.bed_label} marked ${status}.`);
+      } catch (error) {
+        notify(error.message);
+      }
     }
 
     const price = Number(form.price_per_month);
@@ -1258,7 +1281,7 @@ function OwnerRooms({ notify }) {
           <div>
             <div className="eyebrow">OWNER PORTAL</div>
             <h1>Rooms & Vacancies</h1>
-            <p>Manage room types, monthly prices and available beds.</p>
+            <p>Manage floors, rooms, prices and live bed vacancies.</p>
           </div>
         </div>
 
@@ -1433,8 +1456,12 @@ function OwnerRooms({ notify }) {
                         <BedDouble />
                         <strong>{room.room_type} · Floor {room.floor_number || 1}{room.room_number ? ` · Room ${room.room_number}` : ""}</strong>
                         <small>{room.total_beds} total beds · {room.available_beds} available</small>
-                        {room.beds?.length > 0 && <div className="bed-grid">
-                          {room.beds.map((bed) => <span key={bed.id} className={`bed-chip ${bed.status}`}>{bed.bed_label}</span>)}
+                        {room.beds?.length > 0 && <div className="bed-grid selectable">
+                          {room.beds.map((bed) => <button type="button" key={bed.id}
+                            className={`bed-chip ${bed.status}`} disabled={bed.status === "occupied"}
+                            onClick={() => updateBedStatus({ ...bed, room_id: room.id })}>
+                            {bed.bed_label} · {bed.status}
+                          </button>)}
                         </div>}
                       </div>
                       <div>

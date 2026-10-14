@@ -115,7 +115,7 @@ export default function OwnerMenuConnected({ notify }) {
           <nav>
             <Link to="/owner"><Building2 />Overview</Link>
             <Link to="/owner/hostel"><Building2 />My Hostel</Link>
-            <Link to="/owner/rooms"><BedDouble />Rooms & Vacancies</Link>
+            <Link to="/owner/vacancies"><BedDouble />Manage Vacancies</Link>
             <Link to="/owner/menu"><Utensils />Food Menu</Link>
             <Link to="/owner/updates"><Bell />Updates</Link>
           </nav>

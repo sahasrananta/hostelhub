@@ -46,6 +46,39 @@ router.get("/hostel/:hostelId", async (req, res) => {
       message: "Failed to load rooms",
       error: error.message
     });
+
+    router.patch("/beds/:bedId/status", authenticate, authorize("owner"), async (req, res) => {
+      const { status } = req.body;
+      if (!["available", "booked"].includes(status)) {
+        return res.status(400).json({ message: "Bed status must be available or booked" });
+      }
+      const db = await getDb();
+      try {
+        const bed = await db.get(
+          `SELECT b.*, r.hostel_id, h.owner_id
+           FROM beds b JOIN rooms r ON r.id = b.room_id
+           JOIN hostels h ON h.id = r.hostel_id
+           WHERE b.id = ?`,
+          req.params.bedId
+        );
+        if (!bed || bed.owner_id !== req.user.id) return res.status(404).json({ message: "Bed not found" });
+        if (bed.status === "occupied") return res.status(409).json({ message: "Occupied beds can only be freed by cancelling the booking" });
+
+        await db.exec("BEGIN");
+        await db.run("UPDATE beds SET status = ?, booking_id = NULL WHERE id = ?", status, bed.id);
+        await db.run(
+          `UPDATE rooms SET available_beds = (
+            SELECT COUNT(*) FROM beds WHERE room_id = rooms.id AND status = 'available'
+          ) WHERE id = ?`,
+          bed.room_id
+        );
+        await db.exec("COMMIT");
+        res.json(await db.get("SELECT * FROM beds WHERE id = ?", bed.id));
+      } catch (error) {
+        try { await db.exec("ROLLBACK"); } catch {}
+        res.status(500).json({ message: "Could not update bed status", error: error.message });
+      }
+    });
   }
 });
 
